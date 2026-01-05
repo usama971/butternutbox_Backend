@@ -1,0 +1,66 @@
+[
+    {
+        "name": "hsdhvd",
+        "gender": "Girl",
+        "behavior": "No",
+        "food": [
+            "Raw"
+        ],
+        "behaviorFussy": "Foodie",
+        "importantFood": "ordering&Receiving",
+        "bodyType": "img2",
+        "weight": 0,
+        "activity": "img2",
+        "allergies": [
+            "Nothing"
+        ],
+        "selectedHealthIssues": [],
+        "snacks": [],
+        "order": {
+            "recipes": [
+                {
+                    "recipeId": "beef",
+                    "name": "Beef It Up",
+                    "price": 2.45,
+                    "description": "Tender beef with sweet potatoes, peas and a hint of rosemary.",
+                    "category": "mainCourse",
+                    "ingredients": [
+                        "beef",
+                        "sweet potatoes",
+                        "peas",
+                        "rosemary"
+                    ]
+                },
+                {
+                    "recipeId": "chicken",
+                    "name": "Chicken You Out",
+                    "price": 2.45,
+                    "description": "Succulent chicken with peas and a little sage.",
+                    "category": "mainCourse",
+                    "ingredients": [
+                        "chicken",
+                        "peas",
+                        "sage"
+                    ]
+                }
+            ],
+            "totalprice": 4.9,
+            "starterBox": {
+                "starterQuantity": "",
+                "price": ""
+            }
+        },
+        "ageGroup": "An adult",
+        "workingDog": false,
+        "health": "Nohealthissues"
+    }
+]
+{
+    "name": "mm",
+    "email": "nnn@gmail.com",
+    "phone": "",
+    "address": "",
+    "agreeTerms": false,
+    "marketingConsent": true,
+    "receiveDiscounts": false
+}
