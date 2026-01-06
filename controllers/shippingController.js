@@ -1,4 +1,4 @@
-const Shipping = require('../models/Shipping');
+const Shipping = require('../Models/shipping');
 const shippingValidation = require('../validation/shippingValidation');
 
 exports.createShipping = async (req, res) => {
