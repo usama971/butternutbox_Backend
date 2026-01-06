@@ -1,4 +1,4 @@
-const upload = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
+// const upload = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
 const { recipeValidation } = require("../validation/recipeValidation");
 const cloudinary = require("cloudinary").v2;
 const Recipe = require("../Models/recipe");
@@ -43,4 +43,4 @@ const validateRecipeRequest = async (req, res, next) => {
   }
 };
 
-module.exports = { upload, validateRecipeRequest };
+module.exports = { validateRecipeRequest };

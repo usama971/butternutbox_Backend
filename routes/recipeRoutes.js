@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const recipeController = require('../controllers/recipeController');
 // const upload = require('../controllers/middlewares/recipeUpload');
-const {validateRecipeRequest,upload } = require('../validation/recipeImageValidation');
+const {validateRecipeRequest } = require('../validation/recipeImageValidation');
+const {upload,uploadToCloudinary } = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
+
 // const authenticateJWT = require("../controllers/middlewares/authenticateJWT");
 const authenticateJWT = require("../controllers/middlewares/authenticateJWT");
 
