@@ -1,4 +1,4 @@
-const Subscription = require('../models/Subscription');
+const Subscription = require('../Models/subscription');
 const subscriptionValidation = require('../validation/subscriptionValidation');
 
 exports.createSubscription = async (req, res) => {
