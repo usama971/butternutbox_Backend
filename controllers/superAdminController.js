@@ -1,21 +1,49 @@
 const SuperAdmin = require('../Models/SuperAdmin');
 const superAdminValidation = require('../validation/superAdminValidation');
 
+
+
 exports.createSuperAdmin = async (req, res) => {
   try {
-    const { error } = superAdminValidation.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
+    // 1️⃣ Add backend-required fields before validation
+    const newEntry = {
+      ...req.body,
+      userType: "r_c2d7e91a5f" // adding Admin userType
+    };
 
-    const exists = await SuperAdmin.findOne({ email: req.body.email });
-    if (exists) return res.status(400).json({ error: 'Email already exists' });
+    // 2️⃣ Validate (now userType exists)
+    const { error } = superAdminValidation.validate(newEntry);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
-    const newAdmin = new SuperAdmin(req.body);
-    await newAdmin.save();
-    res.status(201).json({ message: 'SuperAdmin created', data: newAdmin });
+    // 3️⃣ Normalize email
+    const email = newEntry.email.toLowerCase();
+
+    // 4️⃣ Check if email already exists
+    const exists = await SuperAdmin.findOne({ email });
+    if (exists) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    // 5️⃣ Save
+    const newAdmin = await SuperAdmin.create({
+      ...newEntry,
+      email // ensure normalized email
+    });
+
+    // 6️⃣ Respond
+    return res.status(201).json({
+      message: "Admin created successfully",
+      data: newAdmin
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Create SuperAdmin Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 exports.getSuperAdmins = async (req, res) => {
   try {

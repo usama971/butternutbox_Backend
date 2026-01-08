@@ -12,10 +12,11 @@ const validateRecipeRequest = async (req, res, next) => {
     }
 
     req.body.adminId = req.user.userId;
-    console.log("admin id in validation:", req.body.adminId);
+    console.log("admin id in validation:", req.body);
     // 2️⃣ Validate recipe body
     const { error } = recipeValidation.validate(req.body);
     if (error) {
+      console.log("Validation error:", error.details[0].message);
       // Delete uploaded image since validation failed
       if (req.file && req.file.filename) {
         await cloudinary.uploader.destroy(req.file.filename);
@@ -27,8 +28,9 @@ const validateRecipeRequest = async (req, res, next) => {
       adminId: req.body.adminId,
       name: req.body.name,
     });
+    console.log("Recipe exists check:", recipeExists);
     if (recipeExists) {
-      await cloudinary.uploader.destroy(req.file.filename);
+      // await cloudinary.uploader.destroy(req.file.filename);
 
       return res.status(400).json({ error: "Recipe already exists" });
     }

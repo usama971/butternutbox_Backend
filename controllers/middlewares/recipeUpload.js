@@ -58,6 +58,7 @@ cloudinary.config({
 const storage = multer.memoryStorage();
 
 const upload = multer({
+  
   storage,
   limits: { fileSize: 1 * 1024 * 1024 }, // 1MB
   fileFilter: (req, file, cb) => {
@@ -80,6 +81,7 @@ const upload = multer({
 
 // Helper upload function
 const uploadToCloudinary = (buffer, folder = "butterNutBox") => {
+  console.log("Uploading to Cloudinary with buffer size:", buffer?.length);
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder, resource_type: "image" },

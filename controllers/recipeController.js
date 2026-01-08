@@ -3,6 +3,8 @@ const {
   recipeValidation,
   updateRecipeValidation,
 } = require("../validation/recipeValidation");
+const {uploadToCloudinary } = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
+
 const cloudinary = require("cloudinary").v2;
 const mongoose = require("mongoose");
 
@@ -188,9 +190,10 @@ exports.createRecipe = async (req, res) => {
     req.body.adminId = req.user.userId;
 
     let imageData = null;
-
+console.log("req.file:");
     if (req.file) {
       const result = await uploadToCloudinary(req.file.buffer);
+      console.log("Cloudinary upload result:", result);
       imageData = {
         url: result.secure_url,
         publicId: result.public_id,
@@ -245,6 +248,7 @@ exports.updateRecipe = async (req, res) => {
 
       const result = await uploadToCloudinary(req.file.buffer);
 
+      console.log("Cloudinary upload result:", result);
       recipe.image = {
         url: result.secure_url,
         publicId: result.public_id,
