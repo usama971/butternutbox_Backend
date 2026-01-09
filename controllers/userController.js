@@ -19,7 +19,9 @@ exports.createUser = async (req, res) => {
 
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find({ roleId: 'client_role_id_here' }).populate('roleId superAdmin');
+    let adminId = req.user.userId;
+
+    const users = await User.find({ adminId });
     res.json({ message: 'Users fetched', data: users });
   } catch (err) {
     res.status(500).json({ error: err.message });

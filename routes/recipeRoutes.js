@@ -27,7 +27,7 @@ router.post(
 
 router.patch(
   "/:id",
-  upload.single("image"),
+   upload.single("image"),
   recipeController.updateRecipe
 );
 router.get('/', recipeController.getRecipes);
