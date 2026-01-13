@@ -1,4 +1,4 @@
-	const Stripe = require("stripe");
+const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const Recipe = require("../Models/recipe");
@@ -49,10 +49,10 @@ exports.createCheckout = async (req, res) => {
       payment_method_types: ["card"],
 
       customer_email: pupParent.email,
-    //   customer_email: "usamasaeed3k@gmail.com",
+      //   customer_email: "usamasaeed3k@gmail.com",
 
       payment_intent_data: {
-        setup_future_usage: "off_session" // 🔑 saves card automatically
+        setup_future_usage: "off_session", // 🔑 saves card automatically
       },
 
       line_items: [
@@ -60,16 +60,16 @@ exports.createCheckout = async (req, res) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Butternut Box Dog Food Plan"
+              name: "Butternut Box Dog Food Plan",
             },
-            unit_amount: Math.round(totalAmount * 100)
+            unit_amount: Math.round(totalAmount * 100),
           },
-          quantity: 1
-        }
+          quantity: 1,
+        },
       ],
 
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/cancel`
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     });
 
     /* --------------------------------------------------
@@ -77,16 +77,15 @@ exports.createCheckout = async (req, res) => {
     -------------------------------------------------- */
     await CheckoutSession.create({
       sessionId: session.id,
-      payload: req.body
+      payload: req.body,
     });
 
     /* --------------------------------------------------
        STEP 4: RETURN CHECKOUT URL
     -------------------------------------------------- */
     return res.json({
-      url: session.url
+      url: session.url,
     });
-
   } catch (err) {
     console.error("Checkout Error:", err);
     return res.status(500).json({ message: err.message });

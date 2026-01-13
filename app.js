@@ -14,10 +14,10 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const shippingRoutes = require("./routes/shippingRoutes");
 const promoCodeRoutes = require("./routes/promoCodeRoutes");
-const checkoutRoutes = require("./routes/checkout");
+// const checkoutRoutes = require("./routes/checkout");
 const authRoutes = require("./routes/authRoutes");
 const authenticateJWT = require("./controllers/middlewares/authenticateJWT");
-
+// abc
 const app = express();
 app.use(cors());
 
@@ -32,7 +32,7 @@ app.get("/api/Check", (req, res) => {
 });
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/checkout", checkoutRoutes);
+// app.use("/api/checkout", checkoutRoutes);
 
 app.use("/api", authenticateJWT);
 
