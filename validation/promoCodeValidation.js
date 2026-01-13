@@ -13,7 +13,7 @@ const createPromoCodeValidation = Joi.object({
       "string.pattern.base":
         "Promo code must be uppercase and contain no spaces",
     }),
-
+  promoType: Joi.string().valid("percentage", "fixed", "shipping").required(),
   startDate: Joi.date().required(),
   endDate: Joi.date().required(),
   percentageDiscount: Joi.string().required(),

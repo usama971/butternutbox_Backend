@@ -8,6 +8,7 @@ const recipeValidation = Joi.object({
   nutritionalInfo: Joi.string().allow(""),
   price: Joi.number().required(),
   category: Joi.string().valid("extras", "mainCourse").required(),
+  status: Joi.string().valid('active', 'inactive').default('active'),
   // image: Joi.object({
   //   url: Joi.string().uri().optional(),
   //   publicId: Joi.string().optional(),

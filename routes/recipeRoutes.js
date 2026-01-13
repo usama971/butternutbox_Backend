@@ -30,6 +30,10 @@ router.patch(
    upload.single("image"),
   recipeController.updateRecipe
 );
+router.patch(
+  "/updateStatus/:id",
+  recipeController.updateRecipeStatus
+);
 router.get('/', recipeController.getRecipes);
 
 module.exports = router;

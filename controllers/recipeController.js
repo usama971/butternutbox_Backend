@@ -97,6 +97,49 @@ exports.updateRecipe = async (req, res) => {
   }
 };
 
+exports.updateRecipeStatus = async (req, res) => {
+  try {
+    console.log("Update Recipe Status req.params:", req.params);
+    console.log("Update Recipe Status req.body:", req.body);
+    const recipeId = req.params.id;
+    const adminId = req.user.userId;
+    const { status } = req.body;
+
+    // 1. Validate status only
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    // 2. Find recipe & check ownership
+    const recipe = await Recipe.findOne({
+      _id: recipeId,
+      adminId: adminId
+    });
+
+    if (!recipe) {
+      return res.status(403).json({
+        message: "Recipe not found or access denied"
+      });
+    }
+
+    // 3. Update status only
+    recipe.status = status;
+    await recipe.save();
+
+    res.status(200).json({
+      message: "Recipe status updated successfully",
+      data: {
+        // _id: recipe._id,
+        status: recipe.status
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 exports.getRecipes = async (req, res) => {
   try {
     // console.log("Get Recipes req.user:", req);
