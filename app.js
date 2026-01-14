@@ -34,9 +34,9 @@ app.get("/api/Check", (req, res) => {
 app.use("/api/auth", authRoutes);
 // app.use("/api/checkout", checkoutRoutes);
 
+app.use("/api/recipes", recipeRoutes);
 app.use("/api", authenticateJWT);
 
-app.use("/api/recipes", recipeRoutes);
 
 app.use("/api/roles", roleRoutes);
 app.use("/api/admin", superAdminRoutes);

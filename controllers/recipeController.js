@@ -53,6 +53,7 @@ exports.createRecipe = async (req, res) => {
 exports.updateRecipe = async (req, res) => {
   try {
     const recipeId = req.params.id;
+    console.log("Update Recipe object:", req.body);
     const { error } = updateRecipeValidation.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -144,15 +145,15 @@ exports.getRecipes = async (req, res) => {
   try {
     // console.log("Get Recipes req.user:", req);
     // console.log("Get Recipes req.user:");
-    const adminId = req.user.userId; // 🔐 from JWT only
+    // const adminId = req.user.userId; // 🔐 from JWT only
 
-    if (!adminId) {
-      console.log("Unauthorized access attempt to get recipes");
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    // if (!adminId) {
+    //   console.log("Unauthorized access attempt to get recipes");
+    //   return res.status(401).json({ message: "Unauthorized" });
+    // }
 
-    const recipes = await Recipe.find({ adminId })
-      // const recipes = await Recipe.find()
+    // const recipes = await Recipe.find({ adminId })
+      const recipes = await Recipe.find()
       .sort({ createdAt: -1 }); // newest first (optional)
 
     res.status(200).json({
