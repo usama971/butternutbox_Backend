@@ -10,9 +10,10 @@ const promoCodeSchema = new mongoose.Schema(
     code: { type: String, required: true, unique: true },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
-    percentageDiscount: { type: String, required: true },
+    discount: { type: Number, required: true },
+    minOrder: { type: Number, required: true },
     numberOfPromoCodes: { type: Number, required: true, min: 1 },
-    limitPerUser: { type: Number, required: true, min: 1 },
+    limitPerUser: { type: Number, required: true, min: 1, default: 1 },
     promoType: {
       type: String,
       enum: ["percentage", "fixed","shipping"],

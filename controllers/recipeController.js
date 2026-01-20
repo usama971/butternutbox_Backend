@@ -54,6 +54,9 @@ exports.updateRecipe = async (req, res) => {
   try {
     const recipeId = req.params.id;
     console.log("Update Recipe object:", req.body);
+
+    req.body.ingredients= JSON.parse(req.body.ingredients);
+
     const { error } = updateRecipeValidation.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -105,6 +108,7 @@ exports.updateRecipeStatus = async (req, res) => {
     const recipeId = req.params.id;
     const adminId = req.user.userId;
     const { status } = req.body;
+    
 
     // 1. Validate status only
     if (!status) {

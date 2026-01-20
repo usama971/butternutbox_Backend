@@ -1,3 +1,4 @@
+const { skipMiddlewareFunction } = require('mongoose');
 const Feedback = require('../Models/feedback');
 const Order = require('../Models/order');
 const {feedbackValidation, feedbackUpdateValidation} = require('../validation/feedbackValidation');
@@ -99,7 +100,9 @@ exports.updateFeedback = async (req, res) => {
 
 exports.getFeedbacks = async (req, res) => {
   try {
-    const feedbacks = await Feedback.find().populate('userId orderId');
+    let userId = req.user.userId;
+    // const feedbacks = await Feedback.find({ userId }).populate('userId orderId');
+    const feedbacks = await Feedback.find({ userId }).populate('userId' , select='-_id name email').populate('orderId', select='orderNumber totalAmount');
     res.json({ message: 'Feedbacks fetched', data: feedbacks });
   } catch (err) {
     res.status(500).json({ error: err.message });

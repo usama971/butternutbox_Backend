@@ -16,17 +16,19 @@ const createPromoCodeValidation = Joi.object({
   promoType: Joi.string().valid("percentage", "fixed", "shipping").required(),
   startDate: Joi.date().required(),
   endDate: Joi.date().required(),
-  percentageDiscount: Joi.string().required(),
+  discount: Joi.number().required(),
+  minOrder: Joi.number().required(),
   numberOfPromoCodes: Joi.number().integer().min(1).required(),
-  limitPerUser: Joi.number().integer().min(1).required(),
+  // limitPerUser: Joi.number().integer().min(1).required(),
   status: Joi.string().valid("active", "expire").default("active"),
 });
 
 // ---------------- Update ----------------
 const updatePromoCodeValidation = Joi.object({
+  adminId: Joi.string().required(),
   endDate: Joi.date().optional(),
   numberOfPromoCodes: Joi.number().integer().min(1).optional(),
-  limitPerUser: Joi.number().integer().min(1).optional(),
+  // limitPerUser: Joi.number().integer().min(1).optional(),
   status: Joi.string().valid("active", "expire").default("active"),
 });
 

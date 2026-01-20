@@ -14,14 +14,14 @@ const OrderItemSchema = new mongoose.Schema(
     qty: { type: Number, default: 1 },
     ingredients: { type: Array, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 const starterBoxSchema = new mongoose.Schema(
   {
     starterQuantity: { type: Number, default: 1, required: true },
     price: { type: String, required: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const OrderSchema = new mongoose.Schema(
@@ -47,8 +47,11 @@ const OrderSchema = new mongoose.Schema(
     paymentMethod: { type: String },
     deliveredDate: { type: Date },
     currency: { type: String, default: "USD" },
+    stripeSessionId: { type: String, required: true },
+    stripeSubscriptionId: { type: String },
+    nextOrderDate: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Order", OrderSchema);

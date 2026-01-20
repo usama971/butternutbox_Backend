@@ -13,6 +13,10 @@ const validateRecipeRequest = async (req, res, next) => {
 
     req.body.adminId = req.user.userId;
     console.log("admin id in validation:", req.body);
+    console.log("Parsed ingredients before:", req.body);
+
+    req.body.ingredients= JSON.parse(req.body.ingredients);
+    console.log("Parsed ingredients:", req.body);
     // 2️⃣ Validate recipe body
     const { error } = recipeValidation.validate(req.body);
     if (error) {
