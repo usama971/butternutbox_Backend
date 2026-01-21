@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema(
     roleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Role",
-      default: () => new mongoose.Types.ObjectId("6943eba7899e3a9d0b81f362"),
+      default: () => new mongoose.Types.ObjectId("694b9e2f0147a7b5ce97d08b"),
       required: true,
     },
 
@@ -30,11 +30,11 @@ const UserSchema = new mongoose.Schema(
 );
 
 // Password hashing
-// UserSchema.pre("save", async function (next) {
-//   if (!this.isModified("password")) return next();
-//   const salt = await bcrypt.genSalt(10);
-//   this.password = await bcrypt.hash(this.password, salt);
-//   next();
-// });
+UserSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+
+});
 
 module.exports = mongoose.model("User", UserSchema);

@@ -29,6 +29,7 @@ router.post(
 
         // Call the helper function
         const session = event.data.object;
+        console.log("Session ID:", session);
         processCheckoutSession(
           session.id,
           session.customer,

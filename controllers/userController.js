@@ -29,6 +29,47 @@ exports.getUsers = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
+  try {
+    // 1. Get adminId from token
+    // const adminId = req.user.userId;
+
+    console.log("Fetching users for admin:", req.user);
+    // 2. Get userId from params
+    const userId = req.user.userId;
+
+    // 3. Get the user and make sure it belongs to the admin
+    const user = await User.findOne({ _id: userId })
+    .select("-_id name email phone address city state houseNumber postCode")
+    .lean();
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found or does not belong to this admin" });
+    }
+
+    // 4. Get pets of this user
+    const pets = await Pet.find({ userId }).lean();
+
+    // 5. Get orders of this user
+    const orders = await Order.find({ userId }).lean();
+
+    // 6. Send combined response with totals
+    res.json({
+      message: "User details fetched",
+      data: {
+        user,
+        totalPets: pets.length,
+        totalOrders: orders.length,
+        // pets,
+        // orders,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 exports.getUserAllDetails = async (req, res) => {
   try {
