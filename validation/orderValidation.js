@@ -15,6 +15,7 @@ const starterBoxSchema = Joi.object({
 });
 
 const orderValidation = Joi.object({
+  orderID: Joi.string().optional(),
   userId: Joi.string().required(),
   petId: Joi.string().required(),
   orderItems: Joi.array().items(orderItemValidation).min(1).required(),

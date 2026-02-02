@@ -36,8 +36,9 @@ exports.getOrders = async (req, res) => {
     let userId = req.user.userId;
     console.log("Fetching orders for userId:", userId);
     // 1️⃣ Fetch all orders
-    const orders = await Order.find({ userId: userId })
-      // .populate("userId") 
+    // const orders = await Order.find({ userId: userId })
+    const orders = await Order.find()
+      .populate("userId").select('-password -roleId')
       .populate("petId")
       .lean(); // 👈 important for performance & mutation
 

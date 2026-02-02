@@ -1,4 +1,5 @@
 const SuperAdmin = require('../Models/SuperAdmin');
+const Subscription = require('../Models/subscription');
 const superAdminValidation = require('../validation/superAdminValidation');
 
 
@@ -47,8 +48,11 @@ exports.createSuperAdmin = async (req, res) => {
 
 exports.getSuperAdmins = async (req, res) => {
   try {
-    const admins = await SuperAdmin.find().populate('roleId');
-    res.json({ message: 'SuperAdmins fetched', data: admins });
+    // const admins = await SuperAdmin.find().populate('roleId');
+    const admins = await SuperAdmin.find({
+      email: { $ne: req.user.email } // ❌ exclude logged-in user
+    }) . select('-password -roleId'); // ✅ exclude passwords
+    res.json({ message: 'data of users', data: admins });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

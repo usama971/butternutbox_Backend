@@ -26,6 +26,11 @@ const starterBoxSchema = new mongoose.Schema(
 
 const OrderSchema = new mongoose.Schema(
   {
+    orderID: {
+      type: String,
+      unique: true,
+      index: true,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -53,5 +58,34 @@ const OrderSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+
+// ----- Pre-save Hook for orderID -----
+OrderSchema.pre("save", async function (next) {
+  if (this.orderID) return next(); // already set, skip
+
+  const generateOrderID = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let id = "";
+    for (let i = 0; i < 8; i++) {
+      id += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return id;
+  };
+
+  let newID;
+  let exists = true;
+
+  // Loop until we generate a unique ID
+  while (exists) {
+    newID = generateOrderID();
+    // Check if another order already has this ID
+    const order = await mongoose.models.Order.findOne({ orderID: newID });
+    if (!order) exists = false;
+  }
+
+  this.orderID = newID;
+  next();
+});
 
 module.exports = mongoose.model("Order", OrderSchema);
