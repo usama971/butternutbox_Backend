@@ -6,6 +6,7 @@ const CheckoutSession = require("../Models/CheckoutSession");
 
 exports.createCheckout = async (req, res) => {
   try {
+    console.log("Create Checkout req.body:", req.body);
     const { pupParent, dogs } = req.body;
 
     if (!pupParent || !dogs || !dogs.length) {
@@ -17,19 +18,53 @@ exports.createCheckout = async (req, res) => {
     --------------------------------------- */
     let totalAmount = 0;
 
-    for (const dog of dogs) {
-      for (const recipeObj of dog.order.recipes) {
-        const recipe = await Recipe.findById(recipeObj.recipeId);
-        if (!recipe) {
-          return res.status(404).json({ message: "Recipe not found" });
-        }
-        totalAmount += Number(recipe.price);
-      }
+    // for (const dog of dogs) {
+    //   for (const recipeObj of dog.order.recipes) {
+    //     const recipe = await Recipe.findById(recipeObj.recipeId);
+    //     if (!recipe) {
+    //       return res.status(404).json({ message: "Recipe not found" });
+    //     }
+    //     totalAmount += Number(recipe.price);
+    //   }
 
-      if (dog.order?.starterBox?.price) {
-        totalAmount += Number(dog.order.starterBox.price);
-      }
+    //   if (dog.order?.starterBox?.price) {
+    //     totalAmount += Number(dog.order.starterBox.price);
+    //   }
+    // }
+
+    for (const dog of dogs) {
+  for (const recipeObj of dog.order.recipes) {
+
+    // ✅ ADD THIS BLOCK
+    if (!recipeObj.recipeId || recipeObj.recipeId.trim() === "") {
+      return res.status(400).json({
+        message: "recipeId is empty",
+        recipeObj,
+      });
     }
+
+    if (!mongoose.Types.ObjectId.isValid(recipeObj.recipeId)) {
+      return res.status(400).json({
+        message: "Invalid recipeId",
+        recipeObj,
+      });
+    }
+    // ✅ END OF NEW BLOCK
+
+    const recipe = await Recipe.findById(recipeObj.recipeId);
+
+    if (!recipe) {
+      return res.status(404).json({ message: "Recipe not found" });
+    }
+
+    totalAmount += Number(recipe.price);
+  }
+
+  if (dog.order?.starterBox?.price) {
+    totalAmount += Number(dog.order.starterBox.price);
+  }
+}
+
 
     if (totalAmount <= 0) {
       return res.status(400).json({ message: "Invalid total amount" });
