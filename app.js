@@ -15,6 +15,7 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const shippingRoutes = require("./routes/shippingRoutes");
 const promoCodeRoutes = require("./routes/promoCodeRoutes");
+const promoCodeValidateRoutes = require("./routes/promoCodeValidateRoutes");
 const checkoutRoutes = require("./routes/checkout");
 const authRoutes = require("./routes/authRoutes");
 const authenticateJWT = require("./controllers/middlewares/authenticateJWT");
@@ -44,6 +45,7 @@ app.get("/api/Check", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/checkout", checkoutRoutes);
+app.use("/api/promoCodes/validate", promoCodeValidateRoutes);
 
 app.use("/api/recipes", recipeRoutesForUser);
 

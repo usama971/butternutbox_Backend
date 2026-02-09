@@ -32,6 +32,94 @@ exports.createPromoCode = async (req, res) => {
   }
 };
 
+
+exports.validatePromoCode = async (req, res) => {
+  try {
+    console.log("Validate Promo Code Request Body:", req.body);
+    const { code, orderTotal, userId } = req.body;
+
+    if (!code || !orderTotal) {
+      return res.status(400).json({
+        valid: false,
+        message: "Promo code and order total are required",
+      });
+    }
+
+    const promo = await PromoCode.findOne({ code });
+
+    if (!promo) {
+      return res.status(404).json({
+        valid: false,
+        message: "Invalid promo code",
+      });
+    }
+
+    // Status check
+    if (promo.status !== "active") {
+      return res.status(400).json({
+        valid: false,
+        message: "Promo code is not active",
+      });
+    }
+
+    const now = new Date();
+
+    // Date check
+    if (now < promo.startDate || now > promo.endDate) {
+      return res.status(400).json({
+        valid: false,
+        message: "Promo code expired",
+      });
+    }
+
+    // Minimum order check
+    if (orderTotal < promo.minOrder) {
+      return res.status(400).json({
+        valid: false,
+        message: `Minimum order amount is ${promo.minOrder}`,
+      });
+    }
+
+    // Usage limit check
+    if (promo.used >= promo.numberOfPromoCodes) {
+      return res.status(400).json({
+        valid: false,
+        message: "Promo code usage limit reached",
+      });
+    }
+
+    // 🧮 Discount calculation
+    let discountAmount = 0;
+
+    if (promo.promoType === "percentage") {
+      discountAmount = (orderTotal * promo.discount) / 100;
+    } else if (promo.promoType === "fixed") {
+      discountAmount = promo.discount;
+    } else if (promo.promoType === "shipping") {
+      discountAmount = 0; // shipping logic handled elsewhere
+    }
+
+    const finalAmount = orderTotal - discountAmount;
+
+    return res.status(200).json({
+      valid: true,
+      code: promo.code,
+      promoType: promo.promoType,
+      discountValue: promo.discount,
+      discountAmount,
+      finalAmount,
+      message: "Promo code applied successfully",
+    });
+  } catch (error) {
+    console.error("Promo validation error:", error);
+    res.status(500).json({
+      valid: false,
+      message: "Server error while validating promo code",
+    });
+  }
+};
+
+
 // ---------------- Get All ----------------
 exports.getAllPromoCodes = async (req, res) => {
   try {

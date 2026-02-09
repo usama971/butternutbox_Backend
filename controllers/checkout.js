@@ -1,5 +1,6 @@
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let mongoose = require("mongoose");
 
 const Recipe = require("../Models/recipe");
 const CheckoutSession = require("../Models/CheckoutSession");
@@ -7,7 +8,9 @@ const CheckoutSession = require("../Models/CheckoutSession");
 exports.createCheckout = async (req, res) => {
   try {
     console.log("Create Checkout req.body:", req.body);
-    const { pupParent, dogs } = req.body;
+    const { pupParent, dogs, finalAmount } = req.body;
+
+    // return res.status(200).json({ message: "Debugging response" });
 
     if (!pupParent || !dogs || !dogs.length) {
       return res.status(400).json({ message: "Invalid payload" });
@@ -74,7 +77,8 @@ exports.createCheckout = async (req, res) => {
        STEP 2: CREATE DYNAMIC RECURRING PRICE
     --------------------------------------- */
     const price = await stripe.prices.create({
-      unit_amount: Math.round(totalAmount * 100),
+      // unit_amount: Math.round(totalAmount * 100),
+      unit_amount: Math.round(finalAmount* 100 ),
       currency: "usd",
       recurring: {
         interval: "day",

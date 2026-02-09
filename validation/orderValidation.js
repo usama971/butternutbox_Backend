@@ -10,7 +10,7 @@ const orderItemValidation = Joi.object({
   qty: Joi.number().optional().default(1),
 });
 const starterBoxSchema = Joi.object({
-  starterQuantity: Joi.number().required(),
+  starterQuantity: Joi.string().required(),
   price: Joi.string().required(),
 });
 

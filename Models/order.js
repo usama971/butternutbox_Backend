@@ -18,7 +18,7 @@ const OrderItemSchema = new mongoose.Schema(
 );
 const starterBoxSchema = new mongoose.Schema(
   {
-    starterQuantity: { type: Number, default: 1, required: true },
+    starterQuantity: { type: String, default: 1, required: true },
     price: { type: String, required: true },
   },
   { _id: false },
@@ -85,7 +85,7 @@ OrderSchema.pre("save", async function (next) {
   }
 
   this.orderID = newID;
-  next();
+  // next();
 });
 
 module.exports = mongoose.model("Order", OrderSchema);

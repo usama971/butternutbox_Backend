@@ -157,7 +157,7 @@ exports.getRecipes = async (req, res) => {
     // }
 
     // const recipes = await Recipe.find({ adminId })
-      const recipes = await Recipe.find()
+      const recipes = await Recipe.find({status: "active"})
       .sort({ createdAt: -1 }); // newest first (optional)
 
     res.status(200).json({
