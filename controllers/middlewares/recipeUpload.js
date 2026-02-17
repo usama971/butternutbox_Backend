@@ -37,7 +37,8 @@ const upload = multer({
 });
 
 // Helper upload function
-const uploadToCloudinary = (buffer, folder = "butterNutBox") => {
+// uploadToCloudinary using in recipeController and uploadToCloudinaryUser using in userController
+const uploadToCloudinaryOrginal = (buffer, folder = "butterNutBox") => {
   console.log("Uploading to Cloudinary with buffer size:", buffer?.length);
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -51,5 +52,27 @@ const uploadToCloudinary = (buffer, folder = "butterNutBox") => {
   });
 };
 
-module.exports = { upload, uploadToCloudinary };
+// Generic function
+const uploadToCloudinaryMain = (buffer, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};
+
+// Dedicated helper for users
+const uploadToCloudinaryUser = (buffer) => uploadToCloudinaryMain(buffer, "butterNutBox/bnbUser");
+
+// Dedicated helper for recipes
+const uploadToCloudinary = (buffer) => uploadToCloudinaryMain(buffer, "butterNutBox");
+
+
+
+module.exports = { upload, uploadToCloudinary, uploadToCloudinaryUser };
 

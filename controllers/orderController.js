@@ -9,6 +9,12 @@ const orderValidation = require("../validation/orderValidation");
 const petValidation = require("../validation/petValidation");
 const userValidation = require("../validation/userValidation");
 
+const sendEmail = require("../services/emailService");
+const {
+  getUserCancelTemplate,
+  getAdminCancelTemplate,
+} = require("../utils/emailTemplates");
+
 exports.createOrder = async (req, res) => {
   try {
     const { error } = orderValidation.validate(req.body);
@@ -37,9 +43,13 @@ exports.getOrders = async (req, res) => {
     console.log("Fetching orders for userId:", userId);
     // 1️⃣ Fetch all orders
     // const orders = await Order.find({ userId: userId })
-    const orders = await Order.find({userId: userId})
-      .populate("userId").select('-password -roleId')
-      .populate("petId")
+    const orders = await Order.find({ userId: userId })
+      .populate("userId")
+      .select("-password -roleId")
+      .populate({
+        path: "orders.petId",
+        model: "Pet", // 👈 must match your Pet model name
+      })
       .lean(); // 👈 important for performance & mutation
 
     console.log("Fetched Orders:", orders);
@@ -66,7 +76,7 @@ exports.getOrders = async (req, res) => {
     // console.log("Orders with Feedback:", ordersWithFeedback[5].feedback);
     console.log(
       "Orders with Feedback:",
-      ordersWithFeedback.map((o) => o.feedback)
+      ordersWithFeedback.map((o) => o.feedback),
     );
     res.json({
       message: "Orders fetched",
@@ -95,7 +105,7 @@ exports.createPetOrder = async (req, res) => {
 
     // ---------------- 2️⃣ Check if User Already Exists ----------------
     const existingUser = await User.findOne({ email: pupParent.email }).session(
-      session
+      session,
     );
     if (existingUser) {
       await session.abortTransaction();
@@ -144,7 +154,7 @@ exports.createPetOrder = async (req, res) => {
         "Existing Pet Check:",
         existingPet,
         petData.name,
-        petData.breed
+        petData.breed,
       );
       if (existingPet) {
         await session.abortTransaction();
@@ -201,5 +211,127 @@ exports.createPetOrder = async (req, res) => {
     session.endSession();
     console.error("Transaction Error:", error);
     return res.status(500).json({ message: error.message });
+  }
+};
+
+// const Order = require("../Models/order");
+const Subscription = require("../Models/subscription");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { cancelOrderValidation } = require("../validation/orderValidation");
+
+// exports.cancelOrder = async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+
+//     // 1️⃣ Find order
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({ error: "Order not found" });
+//     }
+
+//     // 2️⃣ Prevent cancelling already cancelled order
+//     if (order.orderStatus === "cancelled") {
+//       return res.status(400).json({ error: "Order already cancelled" });
+//     }
+
+//     // 3️⃣ Find subscription linked to this order
+//     const subscription = await Subscription.findOne({ orderId });
+
+//     // 4️⃣ Cancel Stripe subscription (if exists)
+//     if (subscription?.stripeSubscriptionId) {
+//       await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+
+//       // Update subscription status in DB
+//       subscription.status = "cancelled";
+//       subscription.autoRenew = false;
+//       await subscription.save();
+//     }
+
+//     // 5️⃣ Update order status
+//     order.orderStatus = "cancelled";
+//     await order.save();
+
+//     res.status(200).json({
+//       message: "Order cancelled successfully",
+//     });
+
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// const Subscription = require("../Models/subscription");
+// const Order = require("../Models/order");
+
+exports.cancelOrder = async (req, res) => {
+  try {
+    // console.log("Cancel Order req.params:", req.params);
+    console.log("Cancel Order req.body:", req.body);
+    console.log("Cancel Order userId from token:", req.user);
+    const user = await User.findById(req.user.userId);
+    console.log("Cancel Order user from DB:", user);
+    // 1️⃣ Validate request body
+    const { error, value } = cancelOrderValidation.validate({ ...req.body });
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { orderId, cancelReason, cancelNote } = value;
+
+    // 2️⃣ Find order
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // 3️⃣ Only processing or paid orders can be cancelled
+    if (order.orderStatus !== "processing" && order.orderStatus !== "paid") {
+      return res.status(400).json({
+        error: `Cannot cancel order because its status is "${order.orderStatus}". Only processing or paid orders can be cancelled.`,
+      });
+    }
+
+    // 4️⃣ Cancel subscription if exists
+    const subscription = await Subscription.findOne({ orderId });
+    if (subscription?.stripeSubscriptionId) {
+      // await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+      subscription.status = "cancelled";
+      subscription.autoRenew = false;
+      await subscription.save();
+    }
+
+    // 5️⃣ Update order with cancel reason & note
+    order.orderStatus = "cancelled";
+    order.cancelReason = cancelReason;
+    order.cancelNote = cancelNote || null;
+    order.cancelledAt = new Date();
+    await order.save();
+
+    // Send email to user
+    await sendEmail({
+      to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+      // to: user.email,
+  subject: "Order Cancellation Confirmation",
+      html: getUserCancelTemplate(
+        // order.userId.name,
+        user.name,
+        order.orderID,
+        cancelReason,
+        cancelNote,
+      ),
+    });
+
+    // Send email to admin
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "User Cancelled an Order",
+      html: getAdminCancelTemplate(
+        user.name,
+        user.email,
+        order.orderID,
+        cancelReason,
+        cancelNote,
+      ),
+    });
+
+    res.status(200).json({ message: "Order cancelled successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

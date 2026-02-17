@@ -1,66 +1,224 @@
-[
-    {
-        "name": "hsdhvd",
-        "gender": "Girl",
-        "behavior": "No",
-        "food": [
-            "Raw"
-        ],
-        "behaviorFussy": "Foodie",
-        "importantFood": "ordering&Receiving",
-        "bodyType": "img2",
-        "weight": 0,
-        "activity": "img2",
-        "allergies": [
-            "Nothing"
-        ],
-        "selectedHealthIssues": [],
-        "snacks": [],
-        "order": {
+{
+    "pupParent": {
+        "name": "Alfreda Crosby",
+        "email": "hojyvo@mailinator.com",
+        "password": "Pa$$w0rd!",
+        "phone": "",
+        "address": "135 450 Clarendon Boulevard, Exercitationem accus, Exercitationem natus",
+        "agreeTerms": true
+    },
+    "orders": [
+        {
             "recipes": [
                 {
-                    "recipeId": "beef",
-                    "name": "Beef It Up",
-                    "price": 2.45,
-                    "description": "Tender beef with sweet potatoes, peas and a hint of rosemary.",
+                    "recipeId": "6953c588ee95eb910d6f6ce5",
+                    "name": "beef Delight 666",
+                    "price": 500,
+                    "description": "Healthy homemade dog food",
                     "category": "mainCourse",
                     "ingredients": [
                         "beef",
-                        "sweet potatoes",
-                        "peas",
-                        "rosemary"
+                        "Rice",
+                        "Carrots"
                     ]
                 },
                 {
-                    "recipeId": "chicken",
-                    "name": "Chicken You Out",
-                    "price": 2.45,
-                    "description": "Succulent chicken with peas and a little sage.",
+                    "recipeId": "6953bd117be852e10d3f6923",
+                    "name": "beef Delight",
+                    "price": 250,
+                    "description": "Healthy homemade dog food",
                     "category": "mainCourse",
                     "ingredients": [
-                        "chicken",
-                        "peas",
-                        "sage"
+                        "beef",
+                        "Rice",
+                        "Carrots"
+                    ]
+                },
+                {
+                    "recipeId": "695f9e762905f481fd8c250e",
+                    "name": "mutton Delight 777",
+                    "price": 500,
+                    "description": "Healthy homemade dog food",
+                    "category": "mainCourse",
+                    "ingredients": [
+                        "beef",
+                        "Rice",
+                        "Carrots"
                     ]
                 }
             ],
-            "totalprice": 4.9,
-            "starterBox": {
-                "starterQuantity": "",
-                "price": ""
+            "starter": {
+                "starterQuantity": "500g",
+                "price": 2415,
+                "selectedPlan": "All Butternut"
+            },
+            "extras": [
+                {
+                    "recipeId": "696f2e785d629e201a125725",
+                    "name": "Anika Douglas",
+                    "price": 570,
+                    "description": "Hic tempore quis si",
+                    "category": "extra",
+                    "ingredients": [
+                        "Tempora"
+                    ]
+                }
+            ],
+            "subOrderTotal": 4235,
+            "dogDetail": {
+                "name": "johnny",
+                "gender": "Boy",
+                "behavior": "Yes",
+                "food": [
+                    "Home-Cooked",
+                    "Wet",
+                    "Dry"
+                ],
+                "fussyEater": "No",
+                "importantFoodItem": "specialHealth",
+                "bodyCondition": "Healthy",
+                "bodyType": "img3",
+                "weight": 35,
+                "activityLevel": "img3",
+                "activity": "img3",
+                "workingDog": false,
+                "allergies": [
+                    "Pearl",
+                    "Venison",
+                    "Guinea fowl",
+                    "Fish"
+                ],
+                "health": "Some issues",
+                "selectedHealthIssues": [
+                    {
+                        "value": "cushings_disease",
+                        "label": "Cushing's disease",
+                        "description": "Dogs with Cushing’s disease have higher levels of cortisol, which increases cholesterol and triglycerides (a type of fat). To help manage this, a diet that’s lower in fat and moderate in fibre is often recommended. The good news is, our chicken, turkey and game meals could all work well for this, but be sure to have a chat with your vet first to discuss your options.",
+                        "color": "green"
+                    },
+                    {
+                        "value": "arthritis",
+                        "label": "Arthritis",
+                        "description": "Even with arthritis, your dog can still enjoy Butternut",
+                        "color": "green"
+                    }
+                ],
+                "snacks": [
+                    "regular_snacks",
+                    "treats",
+                    "chews",
+                    "dental_sticks"
+                ],
+                "snackImage": "",
+                "ageGroup": "A puppy",
+                "month": 0,
+                "week": 0,
+                "year": 0,
+                "guess": false,
+                "notBroughtHomeYet": false,
+                "breed": "Brussels Griffon",
+                "dontKnowBreed": false,
+                "behaviorFussy": "Foodie",
+                "importantFood": "specialHealth"
             }
         },
-        "ageGroup": "An adult",
-        "workingDog": false,
-        "health": "Nohealthissues"
+        {
+            "recipes": [
+                {
+                    "recipeId": "69708274efbfb9b5e5179f88",
+                    "name": "Anthony Schneider",
+                    "price": 10,
+                    "description": "Aspernatur pariatur",
+                    "category": "mainCourse",
+                    "ingredients": [
+                        "Accusantium"
+                    ]
+                },
+                {
+                    "recipeId": "695f9e762905f481fd8c250e",
+                    "name": "mutton Delight 777",
+                    "price": 500,
+                    "description": "Healthy homemade dog food",
+                    "category": "mainCourse",
+                    "ingredients": [
+                        "beef",
+                        "Rice",
+                        "Carrots"
+                    ]
+                }
+            ],
+            "starter": {
+                "starterQuantity": "300g",
+                "price": 2015,
+                "selectedPlan": "Mostly Butternut"
+            },
+            "extras": [
+                {
+                    "recipeId": "696f2e785d629e201a125725",
+                    "name": "Anika Douglas",
+                    "price": 570,
+                    "description": "Hic tempore quis si",
+                    "category": "extra",
+                    "ingredients": [
+                        "Tempora"
+                    ]
+                }
+            ],
+            "subOrderTotal": 3095,
+            "dogDetail": {
+                "name": "sacy",
+                "gender": "Girl",
+                "behavior": "No",
+                "food": [
+                    "Raw",
+                    "Dry",
+                    "Home-Cooked",
+                    "Wet"
+                ],
+                "fussyEater": "No",
+                "importantFoodItem": "lovesTaste",
+                "bodyCondition": "Healthy",
+                "bodyType": "img3",
+                "weight": 35,
+                "activityLevel": "img4",
+                "activity": "img4",
+                "workingDog": false,
+                "allergies": [
+                    "Venison",
+                    "Fish"
+                ],
+                "health": "Some issues",
+                "selectedHealthIssues": [
+                    {
+                        "value": "joint_problems",
+                        "label": "Joint problems",
+                        "description": "Butternut is great for dogs with joint problems. Our recipes contain ground flaxseed which is a pawfect source of omega-3 fatty acids.",
+                        "color": "green"
+                    }
+                ],
+                "snacks": [
+                    "regular_snacks",
+                    "treats",
+                    "chews",
+                    "dental_sticks"
+                ],
+                "snackImage": "",
+                "ageGroup": "An adult",
+                "month": 0,
+                "week": 0,
+                "year": 0,
+                "guess": false,
+                "notBroughtHomeYet": false,
+                "breed": "Chinese Crested",
+                "dontKnowBreed": false,
+                "behaviorFussy": "Good Eater",
+                "importantFood": "lovesTaste"
+            }
+        }
+    ],
+    "pricing": {
+        "subtotal": 7330,
+        "discount": null,
+        "totalPayable": 7330
     }
-]
-{
-    "name": "mm",
-    "email": "nnn@gmail.com",
-    "phone": "",
-    "address": "",
-    "agreeTerms": false,
-    "marketingConsent": true,
-    "receiveDiscounts": false
 }

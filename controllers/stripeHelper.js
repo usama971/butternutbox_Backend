@@ -16,8 +16,12 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
   const checkout = await CheckoutSession.findOne({ sessionId });
   if (!checkout) throw new Error("Checkout session not found");
 
-  const { pupParent, dogs } = checkout.payload;
-  if (!pupParent || !dogs?.length) {
+  const { pupParent, orders, pricing } = checkout.payload;
+  console.log("✅ Fetched checkout payload:11111111111", checkout.payload);
+  console.log("✅ Fetched checkout payload:111  orders", orders);
+  // return; // TEMPORARY STOP
+  // const { pupParent, dogs, finalAmount } = checkout.payload;
+  if (!pupParent || !orders?.length || !pricing) {
     throw new Error("Invalid checkout payload");
   }
 
@@ -37,96 +41,113 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
     });
   }
 
-  // 3️⃣ Loop dogs (MAX 2)
-  for (const dog of dogs.slice(0, 2)) {
-    /* ---------- PET ---------- */
-    const pet = await Pet.create({
-      userId: user._id,
-      name: dog.name,
-      gender: dog.gender,
-      behavior: dog.behavior,
-      food: dog.food || [],
-      behaviorFussy: dog.behaviorFussy,
-      importantFood: dog.importantFoodItem || dog.importantFood,
-      bodyType: dog.bodyType,
-      weight: dog.weight,
-      activity: dog.activityLevel,
-      workingDog: dog.workingDog,
-      allergies: dog.allergies || [],
-      healthIssues: dog.healthIssues || [],
-      snacks: dog.snacks || [],
-      selectedHealthIssues: dog.selectedHealthIssues || [],
-      breed: dog.breed,
-      ageGroup: dog.ageGroup,
-      age: dog.age,
-      health: dog.health,
-      healthCondition: dog.healthIssues?.join(",") || "",
-    });
+  // 3️⃣ Store dogs in DB and get their IDs
+const petIds = []; // To store pet IDs for later use in order
 
-    /* ---------- ORDER ---------- */
-    let totalAmount = 0;
-    const orderItems = [];
+for (let i = 0; i < orders.length && i < 2; i++) {
+  const dogDetail = orders[i].dogDetail;
 
-    for (const item of dog.order?.recipes || []) {
-      const recipe = await Recipe.findById(item.recipeId);
-      if (!recipe) continue;
+  if (!dogDetail) continue; // Skip if no dogDetail
 
-      totalAmount += Number(recipe.price);
-
-      orderItems.push({
-        recipeId: recipe._id,
-        name: recipe.name,
-        price: recipe.price,
-        description: recipe.description,
-        category: recipe.category,
-        qty: 1,
-        ingredients: recipe.ingredients || [],
-      });
-    }
-
-    const starterPrice = Number(dog.order?.starterBox?.price || 0);
-    totalAmount += starterPrice;
-
-    const order = await Order.create({
-      userId: user._id,
-      petId: pet._id,
-      orderItems,
-      starterBox: {
-        starterQuantity: dog.order?.starterBox?.starterQuantity || 1,
-        price: starterPrice,
-      },
-      totalAmount,
-      orderStatus: "paid",
-      paymentMethod: "stripe",
-      stripeSessionId: sessionId,
-      currency: "USD",
-    });
-
-    /* ---------- SUBSCRIPTION ---------- */
-    const hasStripeSubscription = !!stripeSubscriptionId;
-
-  if (hasStripeSubscription) {
-  const start = new Date();
-  const end = new Date();
-  end.setDate(start.getDate() + 14);
-
-  await Subscription.create({
+  const pet = await Pet.create({
     userId: user._id,
-    petId: pet._id,
+    name: dogDetail.name,
+    gender: dogDetail.gender,
+    behavior: dogDetail.behavior,
+    food: dogDetail.food || [],
+    behaviorFussy: dogDetail.behaviorFussy,
+    importantFood: dogDetail.importantFoodItem || dogDetail.importantFood,
+    bodyType: dogDetail.bodyType,
+    weight: dogDetail.weight,
+    activity: dogDetail.activityLevel,
+    workingDog: dogDetail.workingDog,
+    allergies: dogDetail.allergies || [],
+    health: dogDetail.health,
+    selectedHealthIssues: dogDetail.selectedHealthIssues || [],
+    snacks: dogDetail.snacks || [],
+    breed: dogDetail.breed,
+    ageGroup: dogDetail.ageGroup,
+    month: dogDetail.month,
+    week: dogDetail.week,
+    year: dogDetail.year,
+    guess: dogDetail.guess,
+    notBroughtHomeYet: dogDetail.notBroughtHomeYet,
+    behaviorFussy: dogDetail.behaviorFussy,
+    importantFood: dogDetail.importantFoodItem || dogDetail.importantFood,
+  });
+
+  petIds.push(pet._id);
+}
+
+// Now `petIds` array contains 1 or 2 Mongo IDs of the pets
+console.log("✅ Pets created, IDs:", petIds);
+
+// 4️⃣ Build sub-orders array (attach petIds correctly)
+const subOrders = [];
+
+for (let i = 0; i < orders.length && i < 2; i++) {
+  const currentOrder = orders[i];
+
+  subOrders.push({
+    recipes: currentOrder.recipes || [],
+    starter: currentOrder.starter,
+    extras: currentOrder.extras || [],
+    subOrderTotal: currentOrder.subOrderTotal,
+    petId: petIds[i], // 👈 VERY IMPORTANT
+  });
+}
+
+// 5️⃣ Create ONE Order document
+const order = await Order.create({
+  userId: user._id,
+  orders: subOrders,
+  pricing: {
+    subtotal: pricing.subtotal,
+    discount: pricing.discount || {},
+    totalPayable: pricing.totalPayable,
+  },
+  orderStatus: "paid",
+  paymentMethod: "stripe",
+  stripeSessionId: sessionId,
+  stripeSubscriptionId: stripeSubscriptionId || null,
+  currency: "USD",
+});
+
+console.log("✅ Order created successfully:", order._id);
+
+
+
+// return petIds; // Return pet IDs for order creation in the next step
+
+// 6️⃣ Create Subscription (Per Order)
+if (stripeSubscriptionId) {
+  const startDate = new Date();
+
+  // Example: 14-day subscription
+  const frequencyDays = 14;
+  const endDate = new Date();
+  endDate.setDate(startDate.getDate() + frequencyDays);
+
+  const subscription = await Subscription.create({
+    userId: user._id,
     orderId: order._id,
-    subscriptionStart: start,
-    subscriptionEnd: end,
-    frequency: "14 days",
-    frequencyDays: 14,
+    subscriptionStart: startDate,
+    subscriptionEnd: endDate,
+    frequency: `${frequencyDays} days`,
+    frequencyDays: frequencyDays,
     autoRenew: true,
     stripeCustomerId,
     stripeSubscriptionId,
     status: "active",
-    nextOrderDate: end,
+    nextOrderDate: endDate,
   });
+
+  console.log("✅ Subscription created:", subscription._id);
 }
 
-  }
+
+
+ 
 
   console.log("✅ User, pets, orders & subscriptions created successfully");
 }

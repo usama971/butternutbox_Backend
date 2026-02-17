@@ -9,7 +9,7 @@ const SubscriptionSchema = new mongoose.Schema({
   // status: { type: String },
   autoRenew: { type: Boolean, default: false },
 
-  petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
+  // petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
   stripeSubscriptionId: { type: String, required: true },
   stripeCustomerId: { type: String, required: true },
   status: { type: String, enum: ["active", "paused", "cancelled"], default: "active" },

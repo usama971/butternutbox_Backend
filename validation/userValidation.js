@@ -6,7 +6,7 @@ const userValidation = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
-  confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
+  confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({ 'any.only': 'Confirm password must match password' }),
   agreeTerms: Joi.boolean().valid(true).required(),
   receiveDiscounts: Joi.boolean().optional(), 
   phone: Joi.string().allow(''),
@@ -17,5 +17,17 @@ const userValidation = Joi.object({
   postCode: Joi.string().allow(''),
   country: Joi.string().allow(''),
 });
+
+const userUpdateValidation = Joi.object({
+  name: Joi.string().optional(),
+  phone: Joi.string().allow(''),
+  address: Joi.string().allow(''),
+  city: Joi.string().allow(''),
+  state: Joi.string().allow(''),
+  houseNumber: Joi.string().allow(''),
+  postCode: Joi.string().allow(''),
+  country: Joi.string().allow('')
+});
+
 
 module.exports = userValidation;

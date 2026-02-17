@@ -15,9 +15,9 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    confirmPassword: { type: String, required: true },
+    // confirmPassword: { type: String, required: true },
     agreeTerms: { type: Boolean, required: true },
-    receiveDiscounts: { type: Boolean, default: false },  
+    receiveDiscounts: { type: Boolean, default: false },
     phone: { type: String },
     address: { type: String },
     city: { type: String },
@@ -25,8 +25,12 @@ const UserSchema = new mongoose.Schema(
     houseNumber: { type: String },
     postCode: { type: String },
     country: { type: String },
+    image: {
+      url: { type: String },
+      publicId: { type: String },
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Password hashing
@@ -34,7 +38,6 @@ UserSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-
 });
 
 module.exports = mongoose.model("User", UserSchema);

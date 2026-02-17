@@ -148,7 +148,7 @@ exports.updateRecipeStatus = async (req, res) => {
 exports.getRecipes = async (req, res) => {
   try {
     // console.log("Get Recipes req.user:", req);
-    console.log("Get Recipes req.user:");
+    console.log("Get Recipes req.user: ", req.user);
     // const adminId = req.user.userId; // 🔐 from JWT only
 
     // if (!adminId) {

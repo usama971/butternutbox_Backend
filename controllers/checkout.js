@@ -1,117 +1,104 @@
+
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-let mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-const Recipe = require("../Models/recipe");
+const Pet = require("../validation/petValidation");
+const { orderValidation, pricingSchema } = require("../validation/orderValidation");
+const User = require("../validation/userValidation");
+
+const userModel = require("../Models/userModel");
 const CheckoutSession = require("../Models/CheckoutSession");
 
 exports.createCheckout = async (req, res) => {
   try {
     console.log("Create Checkout req.body:", req.body);
-    const { pupParent, dogs, finalAmount } = req.body;
+    const { pupParent, orders, pricing } = req.body;
 
-    // return res.status(200).json({ message: "Debugging response" });
-
-    if (!pupParent || !dogs || !dogs.length) {
+    if (!pupParent || !orders?.length) {
       return res.status(400).json({ message: "Invalid payload" });
     }
 
-    /* ---------------------------------------
-       STEP 1: CALCULATE TOTAL (SERVER TRUTH)
-    --------------------------------------- */
-    let totalAmount = 0;
+    // Check if user already exists
+    const userExists = await userModel.findOne({ email: pupParent.email });
+    if (userExists) {
+      return res.status(400).json({ message: "User with this email already exists" });
+    }
 
-    // for (const dog of dogs) {
-    //   for (const recipeObj of dog.order.recipes) {
-    //     const recipe = await Recipe.findById(recipeObj.recipeId);
-    //     if (!recipe) {
-    //       return res.status(404).json({ message: "Recipe not found" });
-    //     }
-    //     totalAmount += Number(recipe.price);
-    //   }
+    // -----------------------------
+    // Validate pupParent
+    // -----------------------------
+    const { error: userError } = User.validate(pupParent);
+    if (userError) {
+      return res.status(400).json({ errors: [userError.details[0].message] });
+    }
 
-    //   if (dog.order?.starterBox?.price) {
-    //     totalAmount += Number(dog.order.starterBox.price);
-    //   }
-    // }
+    // -----------------------------
+    // Validate orders and dogDetails
+    // -----------------------------
+    const orderErrors = [];
 
-    for (const dog of dogs) {
-  for (const recipeObj of dog.order.recipes) {
+    orders.forEach((orderItem, index) => {
+      // Validate dogDetail first
+      const { error: dogError } = Pet.validate(orderItem.dogDetail);
+      if (dogError) {
+        orderErrors.push({
+          orderIndex: index,
+          type: "dogDetail",
+          messages: dogError.details.map((e) => e.message),
+        });
+        console.log(`Dog Detail validation failed for order index ${index}:`, dogError.details);
+      }
 
-    // ✅ ADD THIS BLOCK
-    if (!recipeObj.recipeId || recipeObj.recipeId.trim() === "") {
+      // Validate order itself
+      const { dogDetail, ...pureOrder } = orderItem;
+      console.log(`Validating order at index ${index}:`, pureOrder);
+      const { error: orderError } = orderValidation.validate(pureOrder);
+      if (orderError) {
+        orderErrors.push({
+          orderIndex: index,
+          type: "order",
+          messages: orderError.details.map((e) => e.message),
+        });
+      }
+    });
+
+    if (orderErrors.length > 0) {
+      return res.status(400).json({ errors: orderErrors });
+    }
+
+    // -----------------------------
+    // Validate pricing
+    // -----------------------------
+    const { error: pricingError } = pricingSchema.validate(pricing);
+    if (pricingError) {
       return res.status(400).json({
-        message: "recipeId is empty",
-        recipeObj,
+        errors: pricingError.details.map((e) => e.message),
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(recipeObj.recipeId)) {
-      return res.status(400).json({
-        message: "Invalid recipeId",
-        recipeObj,
-      });
-    }
-    // ✅ END OF NEW BLOCK
-
-    const recipe = await Recipe.findById(recipeObj.recipeId);
-
-    if (!recipe) {
-      return res.status(404).json({ message: "Recipe not found" });
-    }
-
-    totalAmount += Number(recipe.price);
-  }
-
-  if (dog.order?.starterBox?.price) {
-    totalAmount += Number(dog.order.starterBox.price);
-  }
-}
-
-
-    if (totalAmount <= 0) {
-      return res.status(400).json({ message: "Invalid total amount" });
-    }
-
-    /* ---------------------------------------
-       STEP 2: CREATE DYNAMIC RECURRING PRICE
-    --------------------------------------- */
-    const price = await stripe.prices.create({
-      // unit_amount: Math.round(totalAmount * 100),
-      unit_amount: Math.round(finalAmount* 100 ),
+    // -----------------------------
+    // CREATE STRIPE SUBSCRIPTION
+    // -----------------------------
+    const stripePrice = await stripe.prices.create({
+      unit_amount: Math.round(pricing.totalPayable * 100),
       currency: "usd",
       recurring: {
         interval: "day",
-        interval_count: 14, // 🔁 every 14 days
+        interval_count: 14,
       },
-      product_data: {
-        name: "Dog Food Subscription",
-      },
+      product_data: { name: "Dog Food Subscription" },
     });
 
-    /* ---------------------------------------
-       STEP 3: CREATE SUBSCRIPTION CHECKOUT
-       (IMMEDIATE PAYMENT)
-    --------------------------------------- */
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-
       customer_email: pupParent.email,
-
-      line_items: [
-        {
-          price: price.id,
-          quantity: 1,
-        },
-      ],
-
+      line_items: [{ price: stripePrice.id, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     });
 
-    /* ---------------------------------------
-       STEP 4: SAVE SESSION PAYLOAD
-    --------------------------------------- */
+    // Save session payload
     await CheckoutSession.create({
       sessionId: session.id,
       payload: req.body,
@@ -119,9 +106,9 @@ exports.createCheckout = async (req, res) => {
     });
 
     return res.json({ url: session.url });
-
   } catch (err) {
     console.error("Checkout error:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
+

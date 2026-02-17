@@ -1,7 +1,18 @@
-const User = require('../Models/userModel');
-const Pet = require('../Models/pet1');
-const Order = require('../Models/order');
-const userValidation = require('../validation/userValidation');
+const User = require("../Models/userModel");
+const Pet = require("../Models/pet1");
+const Order = require("../Models/order");
+const userValidation = require("../validation/userValidation");
+const Joi = require('joi');
+const {upload,uploadToCloudinaryUser } = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
+const cloudinary = require("cloudinary").v2;
+const mongoose = require("mongoose");
+
+const userUpdateValidation = Joi.object({
+  name: Joi.string().optional(),
+  phone: Joi.string().allow(''),
+  address: Joi.string().allow('')
+});
+
 
 exports.createUser = async (req, res) => {
   try {
@@ -9,11 +20,11 @@ exports.createUser = async (req, res) => {
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const exists = await User.findOne({ email: req.body.email });
-    if (exists) return res.status(400).json({ error: 'Email already exists' });
+    if (exists) return res.status(400).json({ error: "Email already exists" });
 
     const newUser = new User(req.body);
     await newUser.save();
-    res.status(201).json({ message: 'User created', data: newUser });
+    res.status(201).json({ message: "User created", data: newUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -21,27 +32,80 @@ exports.createUser = async (req, res) => {
 
 exports.UpdateUser = async (req, res) => {
   try {
-    const { error } = userValidation.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
+    console.log("Update User req.body:", req.body);
+    const userId = req.user.userId; // assuming auth middleware sets this
+    console.log("Update User userId from token:", req.user.userId);
+    // Remove fields that should NOT be updated
+    const { email, password, roleId, adminId, ...allowedUpdates } = req.body;
+      console.log("Allowed updates after removing restricted fields:", allowedUpdates);
+      const { error } = userUpdateValidation.validate(allowedUpdates);
+      if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+      }
 
-    const exists = await User.findOne({ email: req.body.email });
-    if (exists) return res.status(400).json({ error: 'Email already exists' });
+    const updatedUser = await User.findByIdAndUpdate(userId, allowedUpdates, {
+      new: true,
+      runValidators: true,
+    });
 
-    const newUser = new User(req.body);
-    await newUser.save();
-    res.status(201).json({ message: 'User created', data: newUser });
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User updated successfully",
+      data: updatedUser,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+exports.updateUserImage = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file uploaded" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Delete old image from Cloudinary
+    if (user.image?.publicId) {
+      await cloudinary.uploader.destroy(user.image.publicId);
+    }
+
+    // Upload new image to butterNutBox/bnbUser
+    const result = await uploadToCloudinaryUser(req.file.buffer);
+
+    user.image = {
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
+
+    await user.save();
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json({
+      message: "User image updated successfully",
+      data: userResponse,
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 exports.getUsers = async (req, res) => {
   try {
     let adminId = req.user.userId;
 
     const users = await User.find({ adminId });
-    res.json({ message: 'Users fetched', data: users });
+    res.json({ message: "Users fetched", data: users });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -57,11 +121,13 @@ exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
 
     // 3. Get the user and make sure it belongs to the admin
     const user = await User.findOne({ _id: userId })
-    .select("-_id name email phone address city state houseNumber postCode")
-    .lean();
+      .select("-_id name email phone address city state houseNumber postCode")
+      .lean();
 
     if (!user) {
-      return res.status(404).json({ error: "User not found or does not belong to this admin" });
+      return res
+        .status(404)
+        .json({ error: "User not found or does not belong to this admin" });
     }
 
     // 4. Get pets of this user
@@ -87,20 +153,16 @@ exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
   }
 };
 
-
 exports.getUserAllDetails = async (req, res) => {
   try {
     let adminId = req.user.userId;
 
-
-
-    
     const userId = req.params.id;
 
     // 1. Get user
-    const user = await User.findById({_id:userId}).lean();
+    const user = await User.findById({ _id: userId }).lean();
 
-    // when we will inject the admin in the user 
+    // when we will inject the admin in the user
     // const user = await User.findById({_id:userId,,
     //   adminId: adminId}).lean();
     if (!user) {
@@ -119,8 +181,8 @@ exports.getUserAllDetails = async (req, res) => {
       data: {
         // user,
         pets,
-        orders
-      }
+        orders,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
