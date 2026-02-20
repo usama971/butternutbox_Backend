@@ -87,38 +87,51 @@ const OrderSchema = new mongoose.Schema(
       type: Date,
     },
 
- return: {
-  status: {
-    type: String,
-    enum: ["none", "requested", "approved", "rejected"],
-    default: "none",
-  },
+    return: {
+      status: {
+        type: String,
+        enum: ["none", "requested", "approved", "rejected"],
+        default: "none",
+      },
 
-  reason: {
-    type: String,
-    enum: [
-      "damaged_item",
-      "wrong_item",
-      "quality_issue",
-      "not_as_described",
-      "too_expensive",
-      "found_alternative",
-      "pet_no_longer_needs",
-      "delivery_issues",
-      "changed_mind",
-      "other"
-    ],
-  },
+      reason: {
+        type: String,
+        enum: [
+          "damaged_item",
+          "wrong_item",
+          "quality_issue",
+          "not_as_described",
+          "too_expensive",
+          "found_alternative",
+          "pet_no_longer_needs",
+          "delivery_issues",
+          "changed_mind",
+          "other",
+        ],
+      },
 
-  note: {
-    type: String,
-  },
-
-  requestedAt: Date,
-  processedAt: Date,
-  rejectionReason: String,
-},
-
+      note: {
+        type: String,
+      },
+      rejectionReason: {
+        type: String,
+        enum: [
+          "return_window_expired",
+          "item_used_or_damaged",
+          "missing_original_packaging",
+          "non_returnable_item",
+          "insufficient_evidence",
+          "policy_violation",
+          "incorrect_return_reason",
+          "already_refunded",
+          "return_not_required",
+          "other",
+        ],
+      },
+      rejectionNote: String,
+      requestedAt: Date,
+      processedAt: Date,
+    },
 
     refund: {
       status: {

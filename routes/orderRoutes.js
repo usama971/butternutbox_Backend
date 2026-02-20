@@ -10,5 +10,6 @@ router.patch('/return', orderController.requestReturn);
 
 router.patch('/return/update', orderController.updateReturnStatus);
 router.patch('/refund', orderController.updateRefundStatus);
+router.patch('/deliveryStatus', orderController.updateOrderDeliveryStatus);
 
 module.exports = router;

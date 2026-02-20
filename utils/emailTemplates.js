@@ -10,13 +10,7 @@ const getUserCancelTemplate1 = (userName, orderID, reason, note) => `
   </div>
 `;
 
-
-const getUserCancelTemplate = (
-  userName,
-  orderID,
-  reason,
-  note
-) => `
+const getUserCancelTemplate = (userName, orderID, reason, note) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -129,12 +123,7 @@ const getUserCancelTemplate = (
 </html>
 `;
 
-const getUserCancelTemplate2 = (
-  userName,
-  orderID,
-  reason,
-  note
-) => `
+const getUserCancelTemplate2 = (userName, orderID, reason, note) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -243,8 +232,6 @@ const getUserCancelTemplate2 = (
 </body>
 </html>
 `;
-
-
 
 // const getAdminCancelTemplate = (userName, userEmail, orderID, reason, note) => `
 //   <div style="font-family: Arial; padding:20px;">
@@ -366,15 +353,7 @@ const getAdminCancelTemplate = (userName, userEmail, orderID, reason, note) => `
 </html>
 `;
 
-
-
-
-const getUserReturnRequestTemplate = (
-  userName,
-  orderID,
-  reason,
-  note
-) => `
+const getUserReturnRequestTemplate = (userName, orderID, reason, note) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -487,7 +466,7 @@ const getAdminReturnRequestTemplate = (
   userEmail,
   orderID,
   reason,
-  note
+  note,
 ) => `
 <!DOCTYPE html>
 <html>
@@ -558,7 +537,7 @@ const getUserRefundCompletedTemplate = (
   userName,
   orderID,
   amount,
-  transactionId
+  transactionId,
 ) => `
 <!DOCTYPE html>
 <html>
@@ -627,11 +606,7 @@ const getUserRefundCompletedTemplate = (
 </body>
 </html>
 `;
-const getUserRefundRejectedTemplate = (
-  userName,
-  orderID,
-  rejectionReason
-) => `
+const getUserRefundRejectedTemplate = (userName, orderID, rejectionReason) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -679,6 +654,7 @@ const getUserRefundRejectedTemplate = (
               `
                   : ""
               }
+          
 
               <p style="margin-top:20px;">
                 If you believe this decision was made in error or need further clarification, 
@@ -702,10 +678,7 @@ const getUserRefundRejectedTemplate = (
 </html>
 `;
 
-const getUserReturnApprovedTemplate = (
-  userName,
-  orderID
-) => `
+const getUserReturnApprovedTemplate = (userName, orderID) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -790,7 +763,8 @@ const getUserReturnApprovedTemplate = (
 const getUserReturnRejectedTemplate = (
   userName,
   orderID,
-  rejectionReason
+  rejectionReason,
+  rejectionNote,
 ) => `
 <!DOCTYPE html>
 <html>
@@ -856,6 +830,17 @@ const getUserReturnRejectedTemplate = (
                   : ""
               }
 
+                      ${
+                        rejectionNote
+                          ? `
+              <p style="margin-top:15px;"><strong>Additional Details:</strong></p>
+              <p style="margin-top:5px; background:#f9fafb; padding:12px; border-radius:6px;">
+                ${rejectionNote}
+              </p>
+              `
+                          : ""
+                      }
+
               <p style="margin:0 0 20px 0;">
                 If you believe this decision was made in error or need further clarification, 
                 please contact our support team.
@@ -893,7 +878,127 @@ const getUserReturnRejectedTemplate = (
 `;
 
 
-              
+
+const getUserOrderStatusTemplate = (
+  userName,
+  orderID,
+  status
+) => {
+  const statusConfig = {
+    processing: {
+      title: "Order Processing Update",
+      subtitle: "Your order is now being prepared",
+      message: "Your order is currently being processed by our team.",
+      highlight: "We are carefully preparing your items for shipment.",
+      headerColor: "#FBEDB6",
+    },
+    dispatched: {
+      title: "Order Dispatched",
+      subtitle: "Your order is on the way",
+      message: "Great news! Your order has been dispatched.",
+      highlight: "Your package is now on its way to you 🚚",
+      headerColor: "#D1FAE5",
+    },
+    delivered: {
+      title: "Order Delivered",
+      subtitle: "Your order has arrived",
+      message: "Your order has been successfully delivered.",
+      highlight: "We hope your pet enjoys it 🐾",
+      headerColor: "#DBEAFE",
+    },
+  };
+
+  const config = statusConfig[status];
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>${config.title}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f9; font-family:Arial, Helvetica, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9; padding:40px 0;">
+    <tr>
+      <td align="center">
+
+        <!-- Main Container -->
+        <table width="600" cellpadding="0" cellspacing="0"
+          style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:${config.headerColor}; padding:25px 30px; color:#1f2937;">
+              <h2 style="margin:0; font-size:20px; font-weight:700;">
+                ${config.title}
+              </h2>
+              <p style="margin:8px 0 0 0; font-size:13px; color:#374151;">
+                ${config.subtitle}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:30px; color:#374151; font-size:14px; line-height:1.6;">
+
+              <p style="margin:0 0 20px 0;">
+                Hello <strong>${userName}</strong>,
+              </p>
+
+              <p style="margin:0 0 20px 0;">
+                Your order 
+                <strong style="color:#111827;">${orderID}</strong> 
+                has been updated.
+              </p>
+
+              <p style="margin:0 0 20px 0;">
+                ${config.message}
+              </p>
+
+              <!-- Highlight Box -->
+              <table width="100%" cellpadding="0" cellspacing="0"
+                style="background:#f9fafb; border-radius:6px; padding:15px; margin:20px 0;">
+                <tr>
+                  <td style="padding:10px 0; font-weight:600; color:#111827;">
+                    ${config.highlight}
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0;">
+                Thank you for choosing us.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="border-top:1px solid #e5e7eb;"></td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 30px; font-size:12px; color:#9ca3af; text-align:center;">
+              This is an automated email notification.  
+              Please do not reply directly to this message.
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Container -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
+};
+
 module.exports = {
   getUserCancelTemplate,
   getAdminCancelTemplate,
@@ -903,4 +1008,5 @@ module.exports = {
   getUserRefundRejectedTemplate,
   getUserReturnApprovedTemplate,
   getUserReturnRejectedTemplate,
+  getUserOrderStatusTemplate,
 };

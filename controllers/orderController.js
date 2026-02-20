@@ -23,6 +23,7 @@ const {
   getUserRefundRejectedTemplate,
   getUserReturnApprovedTemplate,
   getUserReturnRejectedTemplate,
+  getUserOrderStatusTemplate,
 } = require("../utils/emailTemplates");
 
 exports.createOrder = async (req, res) => {
@@ -330,6 +331,7 @@ exports.requestReturn = async (req, res) => {
     order.return = {
       status: "requested",
       reason,
+      note: note || null,
       requestedAt: new Date(),
     };
 
@@ -360,6 +362,7 @@ exports.requestReturn = async (req, res) => {
 
     res.status(200).json({
       message: "Return request submitted successfully.",
+      data: order.return,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -370,7 +373,8 @@ exports.requestReturn = async (req, res) => {
 
 exports.updateReturnStatus = async (req, res) => {
   try {
-    const { orderId, status, rejectionReason } = req.body;
+    const { orderId, status, rejectionReason, rejectionNote } = req.body;
+    console.log("Update Return Status req.body:", req.body);
 
     const order = await Order.findById(orderId).populate("userId");
 
@@ -394,6 +398,7 @@ exports.updateReturnStatus = async (req, res) => {
 
     if (status === "rejected") {
       order.return.rejectionReason = rejectionReason || null;
+      order.return.rejectionNote = rejectionNote || null;
       order.refund = {
         status: "rejected",
         amount: 0,
@@ -432,6 +437,7 @@ exports.updateReturnStatus = async (req, res) => {
           order.userId.name,
           order.orderID,
           rejectionReason,
+          rejectionNote,
         ),
       });
     }
@@ -501,5 +507,93 @@ exports.updateRefundStatus = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateOrderDeliveryStatus = async (req, res) => {
+  try {
+    const { orderId, status } = req.body;
+
+    const allowedStatuses = ["processing", "dispatched", "delivered"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid status update.",
+      });
+    }
+
+    const order = await Order.findById(orderId).populate("userId");
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    if (order.orderStatus === "cancelled") {
+      return res.status(400).json({
+        error: "Cannot update a cancelled order.",
+      });
+    }
+
+    if (order.refund?.status === "completed") {
+      return res.status(400).json({
+        error: "Cannot update a refunded order.",
+      });
+    }
+
+    // ----- VALID TRANSITIONS -----
+
+    if (status === "processing" && order.orderStatus !== "paid") {
+      return res.status(400).json({
+        error: "Only paid orders can move to processing.",
+      });
+    }
+
+    if (status === "dispatched" && order.orderStatus !== "processing") {
+      return res.status(400).json({
+        error: "Only processing orders can be dispatched.",
+      });
+    }
+
+    if (status === "delivered" && order.orderStatus !== "dispatched") {
+      return res.status(400).json({
+        error: "Only dispatched orders can be delivered.",
+      });
+    }
+
+    if (status === "delivered") {
+      order.deliveredDate = new Date();
+    }
+
+    order.orderStatus = status;
+    await order.save();
+
+    // ✅ SEND EMAIL AUTOMATICALLY
+    // await sendEmail({
+    //   to: order.userId.email,
+    //   subject: `Order ${order.orderID} - ${status.toUpperCase()}`,
+    //   html: getOrderStatusEmailTemplate(
+    //     order.userId.name,
+    //     order.orderID,
+    //     status,
+    //   ),
+    // });
+
+    await sendEmail({
+      to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin,
+      subject: `Order ${order.orderID} - ${status.toUpperCase()}`,
+      html: getUserOrderStatusTemplate(
+        order.userId.name,
+        order.orderID,
+        status,
+      ),
+    });
+    return res.status(200).json({
+      message: `Order updated to ${status}.`,
+      orderStatus: order.orderStatus,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
   }
 };
