@@ -9,10 +9,20 @@ const orderValidation = require("../validation/orderValidation");
 const petValidation = require("../validation/petValidation");
 const userValidation = require("../validation/userValidation");
 
+const Subscription = require("../Models/subscription");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const { cancelOrderValidation } = require("../validation/orderValidation");
+
 const sendEmail = require("../services/emailService");
 const {
   getUserCancelTemplate,
   getAdminCancelTemplate,
+  getUserReturnRequestTemplate,
+  getAdminReturnRequestTemplate,
+  getUserRefundCompletedTemplate,
+  getUserRefundRejectedTemplate,
+  getUserReturnApprovedTemplate,
+  getUserReturnRejectedTemplate,
 } = require("../utils/emailTemplates");
 
 exports.createOrder = async (req, res) => {
@@ -74,10 +84,10 @@ exports.getOrders = async (req, res) => {
     }));
 
     // console.log("Orders with Feedback:", ordersWithFeedback[5].feedback);
-    console.log(
-      "Orders with Feedback:",
-      ordersWithFeedback.map((o) => o.feedback),
-    );
+    // console.log(
+    //   "Orders with Feedback:",
+    //   ordersWithFeedback.map((o) => o.feedback),
+    // );
     res.json({
       message: "Orders fetched",
       data: ordersWithFeedback,
@@ -214,55 +224,6 @@ exports.createPetOrder = async (req, res) => {
   }
 };
 
-// const Order = require("../Models/order");
-const Subscription = require("../Models/subscription");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const { cancelOrderValidation } = require("../validation/orderValidation");
-
-// exports.cancelOrder = async (req, res) => {
-//   try {
-//     const { orderId } = req.params;
-
-//     // 1️⃣ Find order
-//     const order = await Order.findById(orderId);
-//     if (!order) {
-//       return res.status(404).json({ error: "Order not found" });
-//     }
-
-//     // 2️⃣ Prevent cancelling already cancelled order
-//     if (order.orderStatus === "cancelled") {
-//       return res.status(400).json({ error: "Order already cancelled" });
-//     }
-
-//     // 3️⃣ Find subscription linked to this order
-//     const subscription = await Subscription.findOne({ orderId });
-
-//     // 4️⃣ Cancel Stripe subscription (if exists)
-//     if (subscription?.stripeSubscriptionId) {
-//       await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
-
-//       // Update subscription status in DB
-//       subscription.status = "cancelled";
-//       subscription.autoRenew = false;
-//       await subscription.save();
-//     }
-
-//     // 5️⃣ Update order status
-//     order.orderStatus = "cancelled";
-//     await order.save();
-
-//     res.status(200).json({
-//       message: "Order cancelled successfully",
-//     });
-
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// const Subscription = require("../Models/subscription");
-// const Order = require("../Models/order");
-
 exports.cancelOrder = async (req, res) => {
   try {
     // console.log("Cancel Order req.params:", req.params);
@@ -301,13 +262,19 @@ exports.cancelOrder = async (req, res) => {
     order.cancelReason = cancelReason;
     order.cancelNote = cancelNote || null;
     order.cancelledAt = new Date();
+    // 🔥 Automatically trigger refund request
+    order.refund = {
+      status: "processing",
+      amount: order.pricing?.totalPayable || 0,
+      requestedAt: new Date(),
+    };
     await order.save();
 
     // Send email to user
     await sendEmail({
       to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
       // to: user.email,
-  subject: "Order Cancellation Confirmation",
+      subject: "Order Cancellation Confirmation",
       html: getUserCancelTemplate(
         // order.userId.name,
         user.name,
@@ -331,6 +298,207 @@ exports.cancelOrder = async (req, res) => {
     });
 
     res.status(200).json({ message: "Order cancelled successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.requestReturn = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    const { orderId, reason, note } = req.body;
+
+    const order = await Order.findById(orderId);
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // Only delivered orders can be returned
+    if (order.orderStatus !== "delivered") {
+      return res.status(400).json({
+        error: "Return can only be requested for delivered orders.",
+      });
+    }
+
+    // Prevent duplicate request
+    if (order.return.status !== "none") {
+      return res.status(400).json({
+        error: "Return already requested or processed.",
+      });
+    }
+
+    order.return = {
+      status: "requested",
+      reason,
+      requestedAt: new Date(),
+    };
+
+    await order.save();
+    await sendEmail({
+      // to: user.email,
+      to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+
+      subject: "Return Request Received",
+      html: getUserReturnRequestTemplate(
+        user.name,
+        order.orderID,
+        reason,
+        note,
+      ),
+    });
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "New Return Request Submitted",
+      html: getAdminReturnRequestTemplate(
+        user.name,
+        user.email,
+        order.orderID,
+        reason,
+        note,
+      ),
+    });
+
+    res.status(200).json({
+      message: "Return request submitted successfully.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// below functions are for Admin
+
+exports.updateReturnStatus = async (req, res) => {
+  try {
+    const { orderId, status, rejectionReason } = req.body;
+
+    const order = await Order.findById(orderId).populate("userId");
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    if (order.return.status !== "requested") {
+      return res.status(400).json({
+        error: "No pending return request found.",
+      });
+    }
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        error: "Invalid status. Must be approved or rejected.",
+      });
+    }
+
+    // 🔥 Update return status
+    order.return.status = status;
+    order.return.processedAt = new Date();
+
+    if (status === "rejected") {
+      order.return.rejectionReason = rejectionReason || null;
+      order.refund = {
+        status: "rejected",
+        amount: 0,
+        processedAt: new Date(),
+      };
+    }
+
+    // 🔥 If approved → trigger refund request
+    if (status === "approved") {
+      order.refund = {
+        status: "processing",
+        amount: order.pricing?.totalPayable || 0,
+        requestedAt: new Date(),
+      };
+    }
+
+    await order.save();
+
+    // =========================
+    // 📩 Send Email to User
+    // =========================
+
+    if (status === "approved") {
+      await sendEmail({
+        to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+        subject: "Return Request Approved",
+        html: getUserReturnApprovedTemplate(order.userId.name, order.orderID),
+      });
+    }
+
+    if (status === "rejected") {
+      await sendEmail({
+        to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+        subject: "Return Request Update",
+        html: getUserReturnRejectedTemplate(
+          order.userId.name,
+          order.orderID,
+          rejectionReason,
+        ),
+      });
+    }
+
+    res.status(200).json({
+      message: `Return ${status} successfully.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateRefundStatus = async (req, res) => {
+  try {
+    const { orderId, status, transactionId } = req.body;
+
+    const order = await Order.findById(orderId).populate("userId");
+
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    if (order.refund.status === "none") {
+      return res.status(400).json({
+        error: "No refund request found for this order.",
+      });
+    }
+
+    const allowedStatuses = ["processing", "completed", "rejected"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid refund status.",
+      });
+    }
+
+    // 🔥 Prevent double completion
+    if (order.refund.status === "completed") {
+      return res.status(400).json({
+        error: "Refund already completed.",
+      });
+    }
+
+    order.refund.status = status;
+
+    if (status === "completed") {
+      order.refund.transactionId = transactionId || null;
+      order.refund.processedAt = new Date();
+    }
+
+    await order.save();
+
+    // Optional: Send email to user when refund completed
+    if (status === "completed") {
+      await sendEmail({
+        to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+        subject: "Refund Completed",
+        html: getUserRefundCompletedTemplate(
+          order.userId.name,
+          order.orderID,
+          order.refund.amount,
+          transactionId,
+        ),
+      });
+    }
+
+    res.status(200).json({
+      message: `Refund marked as ${status}.`,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -39,7 +39,7 @@ const orderValidation = Joi.object({
   subOrderTotal: Joi.number().required(), // ✅ FIXED
 
   orderStatus: Joi.string()
-    .valid("processing", "paid", "cancelled", "refunded","dispatched")
+    .valid("processing", "paid", "dispatched", "delivered", "cancelled")
     .default("processing"),
 
   paymentMethod: Joi.string().allow("").optional(), // ✅ FIXED
