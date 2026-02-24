@@ -20,10 +20,10 @@ exports.createCheckout = async (req, res) => {
     }
 
     // Check if user already exists
-    const userExists = await userModel.findOne({ email: pupParent.email });
-    if (userExists) {
-      return res.status(400).json({ message: "User with this email already exists" });
-    }
+    // const userExists = await userModel.findOne({ email: pupParent.email });
+    // if (userExists) {
+    //   return res.status(400).json({ message: "User with this email already exists" });
+    // }
 
     // -----------------------------
     // Validate pupParent

@@ -35,8 +35,8 @@ const PetSchema = new mongoose.Schema({
 
 
 // ✅ UNIQUE DOG PER USER (name-based)
-PetSchema.index(
-  { userId: 1, name: 1 },
-  { unique: true }
-);
+// PetSchema.index(
+//   { userId: 1, name: 1 },
+//   { unique: true }
+// );
 module.exports = mongoose.model('Pet', PetSchema);

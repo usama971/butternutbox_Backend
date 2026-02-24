@@ -28,6 +28,7 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
   // 2️⃣ Create or find user
   let user = await User.findOne({ email: pupParent.email });
 
+  console.log("✅ User lookup result:", user);
   if (!user) {
     user = await User.create({
       name: pupParent.name,

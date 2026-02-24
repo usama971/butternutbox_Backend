@@ -54,7 +54,8 @@ exports.getOrders = async (req, res) => {
     console.log("Fetching orders for userId:", userId);
     // 1️⃣ Fetch all orders
     // const orders = await Order.find({ userId: userId })
-    const orders = await Order.find({ userId: userId })
+    // const orders = await Order.find({ userId: userId })
+    const orders = await Order.find()
       .populate("userId")
       .select("-password -roleId")
       .populate({
@@ -593,6 +594,33 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+
+exports.getAllOrdersAdmin = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate({
+        path: "userId",
+        select: "-password -roleId -RefreshToken",
+      })
+      // .populate({
+      //   path: "orders.petId",   // 👈 NESTED PATH
+      //   model: "Pet",
+      // })
+      .lean();
+
+    res.status(200).json({
+      message: "All orders fetched successfully",
+      totalOrders: orders.length,
+      data: orders,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching orders",
       error: error.message,
     });
   }
