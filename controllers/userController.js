@@ -2,17 +2,19 @@ const User = require("../Models/userModel");
 const Pet = require("../Models/pet1");
 const Order = require("../Models/order");
 const userValidation = require("../validation/userValidation");
-const Joi = require('joi');
-const {upload,uploadToCloudinaryUser } = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
+const Joi = require("joi");
+const {
+  upload,
+  uploadToCloudinaryUser,
+} = require("../controllers/middlewares/recipeUpload"); // your multer-cloudinary config
 const cloudinary = require("cloudinary").v2;
 const mongoose = require("mongoose");
 
 const userUpdateValidation = Joi.object({
   name: Joi.string().optional(),
-  phone: Joi.string().allow(''),
-  address: Joi.string().allow('')
+  phone: Joi.string().allow(""),
+  address: Joi.string().allow(""),
 });
-
 
 exports.createUser = async (req, res) => {
   try {
@@ -37,11 +39,14 @@ exports.UpdateUser = async (req, res) => {
     console.log("Update User userId from token:", req.user.userId);
     // Remove fields that should NOT be updated
     const { email, password, roleId, adminId, ...allowedUpdates } = req.body;
-      console.log("Allowed updates after removing restricted fields:", allowedUpdates);
-      const { error } = userUpdateValidation.validate(allowedUpdates);
-      if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-      }
+    console.log(
+      "Allowed updates after removing restricted fields:",
+      allowedUpdates,
+    );
+    const { error } = userUpdateValidation.validate(allowedUpdates);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
     const updatedUser = await User.findByIdAndUpdate(userId, allowedUpdates, {
       new: true,
@@ -94,17 +99,18 @@ exports.updateUserImage = async (req, res) => {
       message: "User image updated successfully",
       data: userResponse,
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+// for admin dashboard
 exports.getUsers = async (req, res) => {
   try {
     let adminId = req.user.userId;
 
-    const users = await User.find({ adminId });
+    // const users = await User.find({ adminId });
+    const users = await User.find().select("name email phone address");
     res.json({ message: "Users fetched", data: users });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -186,5 +192,35 @@ exports.getUserAllDetails = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.blockUnblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.isBlocked = !user.isBlocked;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: user.isBlocked ? "User Blocked" : "User Unblocked",
+      data:user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

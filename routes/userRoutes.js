@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
+const authorizePermissions  = require('../controllers/middlewares/authorizePermissions');
 const {
   upload,
   uploadToCloudinary,
@@ -15,8 +16,11 @@ router.patch(
   userController.updateUserImage,
 );
 
-router.get("/", userController.getUsers);
+router.get("/",authorizePermissions(['MANAGE_USERS']), userController.getUsers);
 router.get("/info", userController.getUsersWithTotalPetsAndOrders);
 router.get("/:id", userController.getUserAllDetails);
+router.patch("/block/:userId", userController.blockUnblockUser);
+
+// PATCH /api/admin/user/block/:userId
 
 module.exports = router;

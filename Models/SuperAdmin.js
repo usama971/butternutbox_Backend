@@ -1,14 +1,30 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
-const SuperAdminSchema = new mongoose.Schema({
-  roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', required: true },
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  phone: { type: String },
-  country: { type: String },
-}, { timestamps: true });
+const SuperAdminSchema = new mongoose.Schema(
+  {
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      required: true,
+    },
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    phone: { type: String },
+    country: { type: String },
+    otp: {
+      type: String,
+      default: null,
+    },
+    otpExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    passwordUpdatedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true },
+);
 
 // ✅ Correct pre-save hook (NO next)
 SuperAdminSchema.pre("save", async function () {
@@ -18,4 +34,4 @@ SuperAdminSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-module.exports = mongoose.model('SuperAdmin', SuperAdminSchema);
+module.exports = mongoose.model("SuperAdmin", SuperAdminSchema);

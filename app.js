@@ -18,6 +18,9 @@ const promoCodeRoutes = require("./routes/promoCodeRoutes");
 const promoCodeValidateRoutes = require("./routes/promoCodeValidateRoutes");
 const checkoutRoutes = require("./routes/checkout");
 const authRoutes = require("./routes/authRoutes");
+const authUpdatePasswordRoutes = require("./routes/authUpdatePasswordRoutes");
+
+
 const authenticateJWT = require("./controllers/middlewares/authenticateJWT");
 // abc
 const app = express();
@@ -50,6 +53,8 @@ app.use("/api/promoCodes/validate", promoCodeValidateRoutes);
 app.use("/api/recipes", recipeRoutesForUser);
 
 app.use("/api", authenticateJWT);
+app.use("/api/auth", authUpdatePasswordRoutes);
+
 app.use("/api/recipes", recipeRoutes);
 
 app.use("/api/roles", roleRoutes);

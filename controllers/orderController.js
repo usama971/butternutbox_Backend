@@ -514,6 +514,7 @@ exports.updateRefundStatus = async (req, res) => {
 exports.updateOrderDeliveryStatus = async (req, res) => {
   try {
     const { orderId, status } = req.body;
+    console.log("Update Order Delivery Status req.body:", req.body);
 
     const allowedStatuses = ["processing", "dispatched", "delivered"];
 
@@ -579,15 +580,15 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     //   ),
     // });
 
-    await sendEmail({
-      to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin,
-      subject: `Order ${order.orderID} - ${status.toUpperCase()}`,
-      html: getUserOrderStatusTemplate(
-        order.userId.name,
-        order.orderID,
-        status,
-      ),
-    });
+    // await sendEmail({
+    //   to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin,
+    //   subject: `Order ${order.orderID} - ${status.toUpperCase()}`,
+    //   html: getUserOrderStatusTemplate(
+    //     order.userId.name,
+    //     order.orderID,
+    //     status,
+    //   ),
+    // });
     return res.status(200).json({
       message: `Order updated to ${status}.`,
       orderStatus: order.orderStatus,

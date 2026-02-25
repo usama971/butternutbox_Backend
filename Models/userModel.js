@@ -15,7 +15,6 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    // confirmPassword: { type: String, required: true },
     agreeTerms: { type: Boolean, required: true },
     receiveDiscounts: { type: Boolean, default: false },
     phone: { type: String },
@@ -29,6 +28,22 @@ const UserSchema = new mongoose.Schema(
       url: { type: String },
       publicId: { type: String },
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+
+     otp: {
+      type: String,
+      default: null,
+    },
+    otpExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    passwordUpdatedAt: { type: Date, default: Date.now },
+  
+    
   },
   { timestamps: true },
 );
