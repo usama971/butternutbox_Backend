@@ -20,16 +20,16 @@ const createPromoCodeValidation = Joi.object({
   minOrder: Joi.number().required(),
   numberOfPromoCodes: Joi.number().integer().min(1).required(),
   // limitPerUser: Joi.number().integer().min(1).required(),
-  status: Joi.string().valid("active", "expire").default("active"),
+  status: Joi.string().valid("active", "inactive").default("active"),
 });
 
 // ---------------- Update ----------------
 const updatePromoCodeValidation = Joi.object({
   adminId: Joi.string().required(),
   endDate: Joi.date().optional(),
+  minOrder: Joi.number().optional(),
   numberOfPromoCodes: Joi.number().integer().min(1).optional(),
-  // limitPerUser: Joi.number().integer().min(1).optional(),
-  status: Joi.string().valid("active", "expire").default("active"),
+  status: Joi.string().valid("active", "inactive").optional(),
 });
 
 module.exports = {
