@@ -9,6 +9,7 @@ const Pet = require("../Models/pet1");
 const Order = require("../Models/order");
 const Subscription = require("../Models/subscription");
 const CheckoutSession = require("../Models/CheckoutSession");
+const PromoCode = require("../Models/promoCode");
 const Recipe = require("../Models/recipe");
 
 async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscriptionId) {
@@ -96,6 +97,17 @@ for (let i = 0; i < orders.length && i < 2; i++) {
     subOrderTotal: currentOrder.subOrderTotal,
     petId: petIds[i], // 👈 VERY IMPORTANT
   });
+}
+
+console.log("✅ Pricing:", pricing);
+if (pricing.discount.code) {
+  const promo = await PromoCode.findOne({ code: pricing.discount.code, status: "active"});
+  console.log("✅ Promo:", promo);
+  if (promo) {
+    promo.used++;
+    await promo.save();
+    console.log("✅ Promo saved:", promo);
+  }
 }
 
 // 5️⃣ Create ONE Order document

@@ -6,7 +6,7 @@ router.post('/add', promoCodeController.createPromoCode);           // Create
 router.post('/validate', promoCodeController.validatePromoCode);   // Validate at checkout
 router.get('/', promoCodeController.getAllPromoCodes);             // Get all
 router.get('/:id', promoCodeController.getPromoCodeById);          // Get one
-router.patch('/:id/toggle', promoCodeController.togglePromoCodeStatus);  // Toggle active/inactive
+router.patch('/toggle/:id', promoCodeController.togglePromoCodeStatus);  // Toggle active/inactive
 router.patch('/:id', promoCodeController.updatePromoCode);         // Update allowed fields
 router.delete('/:id', promoCodeController.deletePromoCode);        // Delete
 

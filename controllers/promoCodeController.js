@@ -1,4 +1,6 @@
 const PromoCode = require("../Models/promoCode");
+const User = require("../Models/userModel");
+const Order = require("../Models/order");
 const {
   createPromoCodeValidation,
   updatePromoCodeValidation,
@@ -35,18 +37,29 @@ exports.createPromoCode = async (req, res) => {
 
 exports.validatePromoCode = async (req, res) => {
   try {
-    console.log("Validate Promo Code Request Body:", req.body);
-    const { code, orderTotal, userId } = req.body;
+    const { code, orderTotal, email } = req.body;
 
-    if (!code || !orderTotal) {
+    // ✅ Validate required fields
+    if (!code || !orderTotal || !email) {
       return res.status(400).json({
         valid: false,
-        message: "Promo code and order total are required",
+        message: "Email, promo code, and order total are required",
       });
     }
 
-    const promo = await PromoCode.findOne({ code });
+    // ✅ Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        valid: false,
+        message: "User not found",
+      });
+    }
 
+    const userId = user._id;
+
+    // ✅ Find promo code
+    const promo = await PromoCode.findOne({ code });
     if (!promo) {
       return res.status(404).json({
         valid: false,
@@ -54,7 +67,7 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    // Status check
+    // ✅ Check promo status
     if (promo.status !== "active") {
       return res.status(400).json({
         valid: false,
@@ -63,8 +76,7 @@ exports.validatePromoCode = async (req, res) => {
     }
 
     const now = new Date();
-
-    // Date check
+    // ✅ Check promo validity dates
     if (now < promo.startDate || now > promo.endDate) {
       return res.status(400).json({
         valid: false,
@@ -72,7 +84,7 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    // Minimum order check
+    // ✅ Minimum order check
     if (orderTotal < promo.minOrder) {
       return res.status(400).json({
         valid: false,
@@ -80,7 +92,7 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    // Usage limit check
+    // ✅ Global usage limit
     if (promo.used >= promo.numberOfPromoCodes) {
       return res.status(400).json({
         valid: false,
@@ -88,9 +100,23 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
+    // ✅ Check per-user usage limit
+    if (promo.limitPerUser && promo.limitPerUser > 0) {
+      const userPromoUsageCount = await Order.countDocuments({
+        userId: userId,
+        "pricing.discount.code": code,
+      });
+
+      if (userPromoUsageCount >= promo.limitPerUser) {
+        return res.status(400).json({
+          valid: false,
+          message: `You can use this promo code only ${promo.limitPerUser} times`,
+        });
+      }
+    }
+
     // 🧮 Discount calculation
     let discountAmount = 0;
-
     if (promo.promoType === "percentage") {
       discountAmount = (orderTotal * promo.discount) / 100;
     } else if (promo.promoType === "fixed") {
@@ -146,7 +172,9 @@ exports.getPromoCodeById = async (req, res) => {
 // ---------------- Update ----------------
 exports.updatePromoCode = async (req, res) => {
   try {
-     let adminId = req.user.userId;
+    console.log("Update Request Body:", req.body);
+    // req.body = req.body || {};
+    const adminId = req.user.userId;
     req.body.adminId = adminId;
     console.log("Update Request Body:", req.body);
     const { error } = updatePromoCodeValidation.validate(req.body);
@@ -183,7 +211,11 @@ exports.updatePromoCode = async (req, res) => {
 // ---------------- Toggle Active/Inactive ----------------
 exports.togglePromoCodeStatus = async (req, res) => {
   try {
-    const promo = await PromoCode.findById(req.params.id);
+
+    console.log("Toggle Request Body:", req.params.id);
+    console.log("Toggle Request User:", req.user.userId);
+    const promo = await PromoCode.findOne( {'_id': req.params.id, 'adminId': req.user.userId});
+    console.log("Toggle Promo:", promo);
     if (!promo)
       return res.status(404).json({ message: "Promo code not found" });
 
