@@ -19,6 +19,7 @@ const promoCodeValidateRoutes = require("./routes/promoCodeValidateRoutes");
 const checkoutRoutes = require("./routes/checkout");
 const authRoutes = require("./routes/authRoutes");
 const authUpdatePasswordRoutes = require("./routes/authUpdatePasswordRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 
 const authenticateJWT = require("./controllers/middlewares/authenticateJWT");
@@ -66,6 +67,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/feedbacks", feedbackRoutes);
 app.use("/api/shippings", shippingRoutes);
 app.use("/api/promoCodes", promoCodeRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // app.listen(7001, () => console.log("Server running on http://localhost:7001"));
 const PORT = process.env.PORT || 7002;

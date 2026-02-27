@@ -6,6 +6,7 @@ router.post('/', orderController.createOrder);
 router.post('/pet', orderController.createPetOrder);
 router.get('/', orderController.getOrders);
 router.get('/admin', orderController.getAllOrdersAdmin );
+router.get('/analytics/revenue', orderController.getRevenueAnalytics);
 router.patch('/cancel', orderController.cancelOrder);
 router.patch('/return', orderController.requestReturn);
 

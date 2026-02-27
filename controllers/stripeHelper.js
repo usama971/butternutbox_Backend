@@ -11,6 +11,7 @@ const Subscription = require("../Models/subscription");
 const CheckoutSession = require("../Models/CheckoutSession");
 const PromoCode = require("../Models/promoCode");
 const Recipe = require("../Models/recipe");
+const { createAdminNotifications } = require("../services/notificationService");
 
 async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscriptionId) {
   // 1️⃣ Fetch saved checkout payload
@@ -100,7 +101,7 @@ for (let i = 0; i < orders.length && i < 2; i++) {
 }
 
 console.log("✅ Pricing:", pricing);
-if (pricing.discount.code) {
+if (pricing?.discount?.code) {
   const promo = await PromoCode.findOne({ code: pricing.discount.code, status: "active"});
   console.log("✅ Promo:", promo);
   if (promo) {
@@ -127,6 +128,13 @@ const order = await Order.create({
 });
 
 console.log("✅ Order created successfully:", order._id);
+await createAdminNotifications({
+  title: "New order created",
+  message: `A new order ${order.orderID || order._id} has been created.`,
+  type: "new_order",
+  orderId: order._id,
+  metadata: { userId: user._id, userEmail: user.email },
+});
 
 
 

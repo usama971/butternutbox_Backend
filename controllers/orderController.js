@@ -25,6 +25,10 @@ const {
   getUserReturnRejectedTemplate,
   getUserOrderStatusTemplate,
 } = require("../utils/emailTemplates");
+const {
+  createUserNotification,
+  createAdminNotifications,
+} = require("../services/notificationService");
 
 exports.createOrder = async (req, res) => {
   try {
@@ -54,8 +58,8 @@ exports.getOrders = async (req, res) => {
     console.log("Fetching orders for userId:", userId);
     // 1️⃣ Fetch all orders
     // const orders = await Order.find({ userId: userId })
-    // const orders = await Order.find({ userId: userId })
-    const orders = await Order.find()
+    const orders = await Order.find({ userId: userId })
+    // const orders = await Order.find()
       .populate("userId")
       .select("-password -roleId")
       .populate({
@@ -272,6 +276,23 @@ exports.cancelOrder = async (req, res) => {
     };
     await order.save();
 
+    await Promise.all([
+      createUserNotification({
+        userId: order.userId,
+        title: "Order cancelled",
+        message: `Your order ${order.orderID} has been cancelled.`,
+        type: "order_cancelled",
+        orderId: order._id,
+      }),
+      createAdminNotifications({
+        title: "Order cancelled by user",
+        message: `User ${user.email} cancelled order ${order.orderID}.`,
+        type: "order_cancelled_by_user",
+        orderId: order._id,
+        metadata: { userId: user._id, userEmail: user.email },
+      }),
+    ]);
+
     // Send email to user
     await sendEmail({
       to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
@@ -337,6 +358,26 @@ exports.requestReturn = async (req, res) => {
     };
 
     await order.save();
+    await createUserNotification({
+      userId: order.userId,
+      title: "Return request submitted",
+      message: `Return request for order ${order.orderID} has been submitted.`,
+      type: "return_requested",
+      orderId: order._id,
+      metadata: { reason },
+    });
+    await createAdminNotifications({
+      title: "Return request by user",
+      message: `User ${user.email} requested return for order ${order.orderID}.`,
+      type: "return_requested_by_user",
+      orderId: order._id,
+      metadata: {
+        userId: user._id,
+        userEmail: user.email,
+        reason,
+        note: note || null,
+      },
+    });
     await sendEmail({
       // to: user.email,
       to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
@@ -417,6 +458,18 @@ exports.updateReturnStatus = async (req, res) => {
     }
 
     await order.save();
+    await createUserNotification({
+      userId: order.userId._id || order.userId,
+      title: `Return ${status}`,
+      message: `Your return request for order ${order.orderID} was ${status}.`,
+      type: "return_status_update",
+      orderId: order._id,
+      metadata: {
+        status,
+        rejectionReason: rejectionReason || null,
+        rejectionNote: rejectionNote || null,
+      },
+    });
 
     // =========================
     // 📩 Send Email to User
@@ -488,6 +541,14 @@ exports.updateRefundStatus = async (req, res) => {
     }
 
     await order.save();
+    await createUserNotification({
+      userId: order.userId._id || order.userId,
+      title: `Refund ${status}`,
+      message: `Refund for order ${order.orderID} is now ${status}.`,
+      type: "refund_update",
+      orderId: order._id,
+      metadata: { status, transactionId: transactionId || null },
+    });
 
     // Optional: Send email to user when refund completed
     if (status === "completed") {
@@ -568,6 +629,14 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
 
     order.orderStatus = status;
     await order.save();
+    await createUserNotification({
+      userId: order.userId._id || order.userId,
+      title: "Order status updated",
+      message: `Your order ${order.orderID} status is now ${status}.`,
+      type: "order_status_update",
+      orderId: order._id,
+      metadata: { status },
+    });
 
     // ✅ SEND EMAIL AUTOMATICALLY
     // await sendEmail({
@@ -622,6 +691,104 @@ exports.getAllOrdersAdmin = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error fetching orders",
+      error: error.message,
+    });
+  }
+};
+
+exports.getRevenueAnalytics = async (req, res) => {
+  try {
+    const now = new Date();
+    const dayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const revenueStatuses = ["paid", "processing", "dispatched", "delivered"];
+
+    const [analytics] = await Order.aggregate([
+      {
+        $match: {
+          orderStatus: { $in: revenueStatuses },
+        },
+      },
+      {
+        $facet: {
+          daily: [
+            {
+              $match: {
+                createdAt: { $gte: dayStart, $lte: now },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+          weekly: [
+            {
+              $match: {
+                createdAt: { $gte: sevenDaysAgo, $lte: now },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+          monthly: [
+            {
+              $match: {
+                createdAt: { $gte: monthStart, $lte: now },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+          total: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const dailyRevenue = analytics?.daily?.[0]?.total || 0;
+    const weeklyRevenue = analytics?.weekly?.[0]?.total || 0;
+    const monthlyRevenue = analytics?.monthly?.[0]?.total || 0;
+    const totalRevenue = analytics?.total?.[0]?.total || 0;
+
+    return res.status(200).json({
+      message: "Revenue analytics fetched successfully",
+      data: {
+        dailyRevenue,
+        weeklyRevenue,
+        monthlyRevenue,
+        totalRevenue,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
       error: error.message,
     });
   }

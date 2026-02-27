@@ -10,7 +10,11 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
-    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "SuperAdmin" },
+    adminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SuperAdmin",
+      default: () => new mongoose.Types.ObjectId("694bcaae212c9b9885cb6137"),
+    },
 
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -33,7 +37,7 @@ const UserSchema = new mongoose.Schema(
       default: false,
     },
 
-     otp: {
+    otp: {
       type: String,
       default: null,
     },
@@ -42,8 +46,6 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
     passwordUpdatedAt: { type: Date, default: Date.now },
-  
-    
   },
   { timestamps: true },
 );
