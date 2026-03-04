@@ -2,6 +2,7 @@ const Recipe = require("../Models/recipe");
 const {
   recipeValidation,
   updateRecipeValidation,
+  recipesByAllergiesValidation,
 } = require("../validation/recipeValidation");
 const {
   upload,
@@ -167,6 +168,67 @@ exports.getRecipes = async (req, res) => {
     });
   } catch (err) {
     console.error("Get Recipes Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Check if a recipe contains any of the pet's allergies in its ingredients.
+ * Uses case-insensitive substring match (e.g. "chicken" matches "Chicken breast").
+ */
+function recipeContainsAllergy(recipe, allergies) {
+  if (!allergies?.length) return false;
+  const ingredients = recipe.ingredients || [];
+  return allergies.some((allergy) => {
+    const a = String(allergy || "").toLowerCase().trim();
+    if (!a) return false;
+    return ingredients.some(
+      (ing) => String(ing || "").toLowerCase().includes(a)
+    );
+  });
+}
+
+exports.getRecipesByPetAllergies = async (req, res) => {
+  try {
+    const { error, value } = recipesByAllergiesValidation.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { pets } = value;
+    const recipes = await Recipe.find({ status: "active" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const data = pets.map((pet, index) => {
+      const allergies = pet.allergies || [];
+      const suggestedRecipes = [];
+      const notSuggestedRecipes = [];
+
+      recipes.forEach((recipe) => {
+        if (recipeContainsAllergy(recipe, allergies)) {
+          notSuggestedRecipes.push(recipe);
+        } else {
+          suggestedRecipes.push(recipe);
+        }
+      });
+
+      return {
+        petIndex: index + 1,
+        petName: pet.name || `Pet ${index + 1}`,
+        petId: pet.petId || null,
+        allergies,
+        suggestedRecipes,
+        notSuggestedRecipes,
+      };
+    });
+
+    res.status(200).json({
+      message: "Recipes fetched by pet allergies",
+      data,
+    });
+  } catch (err) {
+    console.error("getRecipesByPetAllergies Error:", err);
     res.status(500).json({ error: err.message });
   }
 };

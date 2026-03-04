@@ -28,5 +28,26 @@ const updateRecipeValidation = Joi.object({
   }).optional()
 }).options({ presence: "optional" }); // all fields optional for partial update
 
+const petAllergiesItemSchema = Joi.object({
+  allergies: Joi.array().items(Joi.string()).default([]),
+  name: Joi.string().allow("").optional(),
+  petId: Joi.string().optional(),
+});
 
-module.exports = {recipeValidation,updateRecipeValidation};
+const recipesByAllergiesValidation = Joi.object({
+  pets: Joi.array()
+    .items(petAllergiesItemSchema)
+    .min(1)
+    .max(2)
+    .required()
+    .messages({
+      "array.min": "At least one pet with allergies is required",
+      "array.max": "Maximum 2 pets supported",
+    }),
+});
+
+module.exports = {
+  recipeValidation,
+  updateRecipeValidation,
+  recipesByAllergiesValidation,
+};
