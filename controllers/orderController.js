@@ -794,7 +794,7 @@ exports.getRevenueAnalyticsSimple = async (req, res) => {
   }
 };
 
-exports.getRevenueAnalytics = async (req, res) => {
+const getRevenueAnalytics = async (req, res) => {
   try {
     const now = new Date();
 
@@ -951,7 +951,7 @@ exports.getRevenueAnalytics = async (req, res) => {
 
 
 
-exports.getRevenueBreakdown = async (req, res) => {
+const getRevenueBreakdown = async (req, res) => {
   try {
     const now = new Date();
 
@@ -1197,147 +1197,215 @@ exports.getRevenueAnalytics1 = async (req, res) => {
   }
 };
 
-exports.getAdvancedKPIs = async (req, res) => {
+const getAdvancedKPIs = async (req, res) => {
   try {
     const now = new Date();
-
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-    // ===============================
-    // 1️⃣ AOV CALCULATION
-    // ===============================
 
     const disputeExclude = {
       "dispute.status": { $nin: ["requested", "under_review", "resolved", "rejected"] },
     };
 
-    const aovData = await Order.aggregate([
-      {
-        $match: {
-          orderStatus: "delivered",
-          createdAt: { $gte: previousMonthStart },
-          ...disputeExclude,
-        },
-      },
-      {
-        $addFields: {
-          period: {
-            $cond: [
-              { $gte: ["$createdAt", currentMonthStart] },
-              "current",
-              "previous",
-            ],
-          },
-        },
-      },
+    const baseMatch = { orderStatus: "delivered", ...disputeExclude };
+
+    // ---------- DATE RANGES ----------
+    // Weeks: last 4 weeks (0–28 days), previous 4 weeks (28–56 days), before that (56–84 days)
+    const w0 = new Date(now); w0.setDate(now.getDate() - 28);
+    const w1 = new Date(now); w1.setDate(now.getDate() - 56);
+    const w2 = new Date(now); w2.setDate(now.getDate() - 84);
+
+    // Months: last 4 months, previous 4 months, before that
+    const m0 = new Date(now.getFullYear(), now.getMonth() - 4, 1);
+    const m1 = new Date(now.getFullYear(), now.getMonth() - 8, 1);
+    const m2 = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+
+    // Years: last 4 years, previous 4 years, before that
+    const y0 = new Date(now.getFullYear() - 4, 0, 1);
+    const y1 = new Date(now.getFullYear() - 8, 0, 1);
+    const y2 = new Date(now.getFullYear() - 12, 0, 1);
+
+    const calcPct = (curr, prev) =>
+      prev ? Number((((curr - prev) / prev) * 100).toFixed(2)) : 0;
+
+    const buildKpi = (value, pct) => ({
+      value: Number(value.toFixed(2)),
+      percentageChange: pct,
+      trend: pct > 0 ? "up" : pct < 0 ? "down" : "same",
+    });
+
+    // ---------- AOV PIPELINE ----------
+    const aovPipeline = (start, end) => [
+      { $match: { ...baseMatch, createdAt: { $gte: start, $lte: end || now } } },
       {
         $group: {
-          _id: "$period",
+          _id: null,
           revenue: { $sum: "$pricing.totalPayable" },
           orders: { $sum: 1 },
         },
       },
+    ];
+
+    const [aovW0, aovW1, aovW2] = await Promise.all([
+      Order.aggregate(aovPipeline(w0, now)),
+      Order.aggregate(aovPipeline(w1, w0)),
+      Order.aggregate(aovPipeline(w2, w1)),
+    ]);
+    const [aovM0, aovM1, aovM2] = await Promise.all([
+      Order.aggregate(aovPipeline(m0, now)),
+      Order.aggregate(aovPipeline(m1, m0)),
+      Order.aggregate(aovPipeline(m2, m1)),
+    ]);
+    const [aovY0, aovY1, aovY2] = await Promise.all([
+      Order.aggregate(aovPipeline(y0, now)),
+      Order.aggregate(aovPipeline(y1, y0)),
+      Order.aggregate(aovPipeline(y2, y1)),
     ]);
 
-    const current = aovData.find(d => d._id === "current") || { revenue: 0, orders: 0 };
-    const previous = aovData.find(d => d._id === "previous") || { revenue: 0, orders: 0 };
+    const getAov = (r) => (r[0]?.orders ? r[0].revenue / r[0].orders : 0);
+    const aovW0Val = getAov(aovW0); const aovW1Val = getAov(aovW1); const aovW2Val = getAov(aovW2);
+    const aovM0Val = getAov(aovM0); const aovM1Val = getAov(aovM1); const aovM2Val = getAov(aovM2);
+    const aovY0Val = getAov(aovY0); const aovY1Val = getAov(aovY1); const aovY2Val = getAov(aovY2);
 
-    const currentAOV = current.orders ? current.revenue / current.orders : 0;
-    const previousAOV = previous.orders ? previous.revenue / previous.orders : 0;
-
-    const aovPercentage = previousAOV
-      ? ((currentAOV - previousAOV) / previousAOV) * 100
-      : 0;
-
-    // ===============================
-    // 2️⃣ CUSTOMER RETENTION
-    // ===============================
-
-    const retentionData = await Order.aggregate([
+    // ---------- RETENTION: % of previous-period customers who also bought in current period ----------
+    const retentionPipeline = (currStart, currEnd, prevStart, prevEnd) => [
       {
         $match: {
-          orderStatus: "delivered",
-          createdAt: { $gte: previousMonthStart },
-          ...disputeExclude,
+          ...baseMatch,
+          createdAt: { $gte: prevStart, $lte: currEnd || now },
         },
       },
       {
         $addFields: {
-          period: {
-            $cond: [
-              { $gte: ["$createdAt", currentMonthStart] },
-              "current",
-              "previous",
-            ],
-          },
+          inCurrent: { $and: [{ $gte: ["$createdAt", currStart] }, { $lte: ["$createdAt", currEnd || now] }] },
+          inPrevious: { $and: [{ $gte: ["$createdAt", prevStart] }, { $lte: ["$createdAt", prevEnd] }] },
+        },
+      },
+      { $match: { $or: [{ inCurrent: true }, { inPrevious: true }] } },
+      {
+        $group: {
+          _id: "$userId",
+          inCurrent: { $max: { $cond: ["$inCurrent", 1, 0] } },
+          inPrevious: { $max: { $cond: ["$inPrevious", 1, 0] } },
         },
       },
       {
         $group: {
-          _id: "$userId",
-          periods: { $addToSet: "$period" },
+          _id: null,
+          retained: { $sum: { $cond: [{ $and: ["$inCurrent", "$inPrevious"] }, 1, 0] } },
+          prevCustomers: { $sum: "$inPrevious" },
         },
       },
+    ];
+
+    const [retW0, retW1] = await Promise.all([
+      Order.aggregate(retentionPipeline(w0, now, w1, w0)),
+      Order.aggregate(retentionPipeline(w1, w0, w2, w1)),
+    ]);
+    const [retM0, retM1] = await Promise.all([
+      Order.aggregate(retentionPipeline(m0, now, m1, m0)),
+      Order.aggregate(retentionPipeline(m1, m0, m2, m1)),
+    ]);
+    const [retY0, retY1] = await Promise.all([
+      Order.aggregate(retentionPipeline(y0, now, y1, y0)),
+      Order.aggregate(retentionPipeline(y1, y0, y2, y1)),
     ]);
 
-    const retainedCustomers = retentionData.filter(c =>
-      c.periods.includes("current") && c.periods.includes("previous")
-    ).length;
+    const getRetention = (r) => {
+      const prev = r[0]?.prevCustomers || 0;
+      return prev ? ((r[0]?.retained || 0) / prev) * 100 : 0;
+    };
 
-    const previousCustomers = retentionData.filter(c =>
-      c.periods.includes("previous")
-    ).length;
-
-    const retentionRate = previousCustomers
-      ? (retainedCustomers / previousCustomers) * 100
-      : 0;
-
-    // ===============================
-    // 3️⃣ REPEAT PURCHASE RATE
-    // ===============================
-
-    const repeatData = await Order.aggregate([
-      {
-        $match: { orderStatus: "delivered", ...disputeExclude },
-      },
+    // ---------- REPEAT RATE: % of customers with 2+ orders in period ----------
+    const repeatPipeline = (start, end) => [
+      { $match: { ...baseMatch, createdAt: { $gte: start, $lte: end || now } } },
+      { $group: { _id: "$userId", orderCount: { $sum: 1 } } },
       {
         $group: {
-          _id: "$userId",
-          totalOrders: { $sum: 1 },
+          _id: null,
+          total: { $sum: 1 },
+          repeat: { $sum: { $cond: [{ $gte: ["$orderCount", 2] }, 1, 0] } },
         },
       },
+    ];
+
+    const [repW0, repW1] = await Promise.all([
+      Order.aggregate(repeatPipeline(w0, now)),
+      Order.aggregate(repeatPipeline(w1, w0)),
+    ]);
+    const [repM0, repM1] = await Promise.all([
+      Order.aggregate(repeatPipeline(m0, now)),
+      Order.aggregate(repeatPipeline(m1, m0)),
+    ]);
+    const [repY0, repY1] = await Promise.all([
+      Order.aggregate(repeatPipeline(y0, now)),
+      Order.aggregate(repeatPipeline(y1, y0)),
     ]);
 
-    const totalCustomers = repeatData.length;
-    const repeatCustomers = repeatData.filter(c => c.totalOrders > 1).length;
+    const getRepeat = (r) => {
+      const total = r[0]?.total || 0;
+      return total ? ((r[0]?.repeat || 0) / total) * 100 : 0;
+    };
 
-    const repeatRate = totalCustomers
-      ? (repeatCustomers / totalCustomers) * 100
-      : 0;
+    const repW0Val = getRepeat(repW0); const repW1Val = getRepeat(repW1);
+    const repM0Val = getRepeat(repM0); const repM1Val = getRepeat(repM1);
+    const repY0Val = getRepeat(repY0); const repY1Val = getRepeat(repY1);
 
-    // ===============================
-    // RESPONSE
-    // ===============================
-
-    const buildObject = (value, percentage) => ({
-      value: Number(value.toFixed(2)),
-      percentage: Number(percentage.toFixed(2)),
-      trend:
-        percentage > 0 ? "up" :
-        percentage < 0 ? "down" :
-        "same",
-    });
-
+    // ---------- BUILD RESPONSE ----------
     return res.status(200).json({
       message: "Advanced KPIs fetched successfully",
       data: {
-        AverageOrderValue: buildObject(currentAOV, aovPercentage),
-        CustomerRetention: buildObject(retentionRate, 0), // retention comparison can be expanded
-        RepeatPurchaseRate: buildObject(repeatRate, 0),
+        AverageOrderValue: {
+          last4Weeks: buildKpi(aovW0Val, calcPct(aovW0Val, aovW1Val)),
+          last4Months: buildKpi(aovM0Val, calcPct(aovM0Val, aovM1Val)),
+          last4Years: buildKpi(aovY0Val, calcPct(aovY0Val, aovY1Val)),
+        },
+        CustomerRetention: {
+          last4Weeks: buildKpi(getRetention(retW0), calcPct(getRetention(retW0), getRetention(retW1))),
+          last4Months: buildKpi(getRetention(retM0), calcPct(getRetention(retM0), getRetention(retM1))),
+          last4Years: buildKpi(getRetention(retY0), calcPct(getRetention(retY0), getRetention(retY1))),
+        },
+        RepeatPurchaseRate: {
+          last4Weeks: buildKpi(repW0Val, calcPct(repW0Val, repW1Val)),
+          last4Months: buildKpi(repM0Val, calcPct(repM0Val, repM1Val)),
+          last4Years: buildKpi(repY0Val, calcPct(repY0Val, repY1Val)),
+        },
       },
     });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
 
+
+
+/**
+ * Runs a controller handler and captures the JSON it would send (for combining responses).
+ */
+async function captureHandlerResponse(handler, req) {
+  return new Promise((resolve, reject) => {
+    const mockRes = {
+      status: function () { return this; },
+      json: (data) => resolve(data),
+    };
+    handler(req, mockRes).catch(reject);
+  });
+}
+
+exports.getAnalyticsCombined = async (req, res) => {
+  try {
+    const [revenueAnalytics, revenueBreakdown, advancedKPIs] = await Promise.all([
+      captureHandlerResponse(getRevenueAnalytics, req),
+      captureHandlerResponse(getRevenueBreakdown, req),
+      captureHandlerResponse(getAdvancedKPIs, req),
+    ]);
+
+    return res.status(200).json({
+      message: "Analytics fetched successfully",
+      data: {
+        revenueAnalytics,
+        revenueBreakdown,
+        advancedKPIs,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
