@@ -806,7 +806,7 @@ exports.getRevenueAnalytics = async (req, res) => {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const startOf4WeeksAgo = new Date();
-    startOf4WeeksAgo.setDate(now.getDate() - 21);
+    startOf4WeeksAgo.setDate(now.getDate() - 28);
 
     const startOf4MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
@@ -818,6 +818,9 @@ exports.getRevenueAnalytics = async (req, res) => {
       {
         $match: {
           orderStatus: revenueStatus,
+          "dispute.status": {
+            $nin: ["requested", "under_review", "resolved", "rejected"],
+          },
         },
       },
       {
@@ -877,12 +880,12 @@ exports.getRevenueAnalytics = async (req, res) => {
     const monthlyResult = [];
     const yearlyResult = [];
 
-    // Weekly (Current + 3 previous)
+    // Weekly (Current + 3 previous) — use ISO week year to match MongoDB $isoWeekYear
     for (let i = 0; i < 4; i++) {
       const date = new Date();
       date.setDate(now.getDate() - i * 7);
 
-      const year = date.getFullYear();
+      const year = getISOWeekYear(date);
       const week = getISOWeek(date);
 
       const found = analytics.weekly.find(
@@ -962,26 +965,34 @@ exports.getRevenueBreakdown = async (req, res) => {
 
     // ---------------- AGGREGATION ----------------
     const [analytics] = await Order.aggregate([
-      // Step 1: Only delivered orders, widest range (4 years) for index efficiency
+      // Step 1: Only delivered orders, exclude disputed orders, widest range (4 years)
       {
         $match: {
           orderStatus: "delivered",
           createdAt: { $gte: startOf4YearsAgo, $lte: now },
+          "dispute.status": {
+            $nin: ["requested", "under_review", "resolved", "rejected"],
+          },
         },
       },
 
       // Step 2: Unwind orders array so each pet sub-order becomes its own doc
       { $unwind: "$orders" },
 
-      // Step 3: Compute per sub-order totals for recipes, starter, extras
+      // Step 3: Compute per sub-order totals for recipes, starter, extras (null-safe)
       {
         $addFields: {
           subRecipesTotal: {
             $sum: {
               $map: {
-                input: "$orders.recipes",
+                input: { $ifNull: ["$orders.recipes", []] },
                 as: "r",
-                in: { $multiply: ["$$r.price", "$$r.qty"] },
+                in: {
+                  $multiply: [
+                    "$$r.price",
+                    { $ifNull: ["$$r.qty", 1] },
+                  ],
+                },
               },
             },
           },
@@ -989,9 +1000,14 @@ exports.getRevenueBreakdown = async (req, res) => {
           subExtrasTotal: {
             $sum: {
               $map: {
-                input: "$orders.extras",
+                input: { $ifNull: ["$orders.extras", []] },
                 as: "e",
-                in: { $multiply: ["$$e.price", "$$e.qty"] },
+                in: {
+                  $multiply: [
+                    "$$e.price",
+                    { $ifNull: ["$$e.qty", 1] },
+                  ],
+                },
               },
             },
           },
@@ -1192,11 +1208,16 @@ exports.getAdvancedKPIs = async (req, res) => {
     // 1️⃣ AOV CALCULATION
     // ===============================
 
+    const disputeExclude = {
+      "dispute.status": { $nin: ["requested", "under_review", "resolved", "rejected"] },
+    };
+
     const aovData = await Order.aggregate([
       {
         $match: {
           orderStatus: "delivered",
           createdAt: { $gte: previousMonthStart },
+          ...disputeExclude,
         },
       },
       {
@@ -1238,6 +1259,7 @@ exports.getAdvancedKPIs = async (req, res) => {
         $match: {
           orderStatus: "delivered",
           createdAt: { $gte: previousMonthStart },
+          ...disputeExclude,
         },
       },
       {
@@ -1277,7 +1299,7 @@ exports.getAdvancedKPIs = async (req, res) => {
 
     const repeatData = await Order.aggregate([
       {
-        $match: { orderStatus: "delivered" },
+        $match: { orderStatus: "delivered", ...disputeExclude },
       },
       {
         $group: {
@@ -1321,13 +1343,20 @@ exports.getAdvancedKPIs = async (req, res) => {
   }
 };
 
-// Helper function for ISO week
+// Helper: ISO week number (1–53), matches MongoDB $isoWeek
 function getISOWeek(date) {
   const temp = new Date(date);
   temp.setHours(0, 0, 0, 0);
   temp.setDate(temp.getDate() + 4 - (temp.getDay() || 7));
   const yearStart = new Date(temp.getFullYear(), 0, 1);
   return Math.ceil(((temp - yearStart) / 86400000 + 1) / 7);
+}
+
+// Helper: ISO week year (can differ from calendar year at boundaries), matches MongoDB $isoWeekYear
+function getISOWeekYear(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  return d.getFullYear();
 }
 
 //  /orders/:orderId/dispute
@@ -1374,7 +1403,6 @@ exports.requestDispute = async (req, res) => {
   }
 };
 
-
 // PATCH request for admin to resolve a dispute
 exports.resolveDispute = async (req, res) => {
   try {
@@ -1420,3 +1448,4 @@ exports.resolveDispute = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
