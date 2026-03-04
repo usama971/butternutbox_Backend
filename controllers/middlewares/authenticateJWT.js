@@ -14,6 +14,7 @@ const authenticateJWT = (req, res, next) => {
     // console.log("Decoded JWT:", decoded);
     // Attach decoded token data to req.user
     req.user = decoded;
+    console.log("req.user", req.user);
 
     next();
   } catch (error) {

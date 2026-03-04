@@ -696,7 +696,7 @@ exports.getAllOrdersAdmin = async (req, res) => {
   }
 };
 
-exports.getRevenueAnalytics = async (req, res) => {
+exports.getRevenueAnalyticsSimple = async (req, res) => {
   try {
     const now = new Date();
     const dayStart = new Date(
@@ -791,5 +791,632 @@ exports.getRevenueAnalytics = async (req, res) => {
     return res.status(500).json({
       error: error.message,
     });
+  }
+};
+
+exports.getRevenueAnalytics = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Only delivered orders
+    const revenueStatus = "delivered";
+
+    // ---------------- DATE RANGES ----------------
+
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const startOf4WeeksAgo = new Date();
+    startOf4WeeksAgo.setDate(now.getDate() - 21);
+
+    const startOf4MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+    const startOf4YearsAgo = new Date(now.getFullYear() - 3, 0, 1);
+
+    // ---------------- AGGREGATION ----------------
+
+    const [analytics] = await Order.aggregate([
+      {
+        $match: {
+          orderStatus: revenueStatus,
+        },
+      },
+      {
+        $facet: {
+          daily: [
+            { $match: { createdAt: { $gte: todayStart, $lte: now } } },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+
+          weekly: [
+            { $match: { createdAt: { $gte: startOf4WeeksAgo, $lte: now } } },
+            {
+              $group: {
+                _id: {
+                  year: { $isoWeekYear: "$createdAt" },
+                  week: { $isoWeek: "$createdAt" },
+                },
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+
+          monthly: [
+            { $match: { createdAt: { $gte: startOf4MonthsAgo, $lte: now } } },
+            {
+              $group: {
+                _id: {
+                  year: { $year: "$createdAt" },
+                  month: { $month: "$createdAt" },
+                },
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+
+          yearly: [
+            { $match: { createdAt: { $gte: startOf4YearsAgo, $lte: now } } },
+            {
+              $group: {
+                _id: { year: { $year: "$createdAt" } },
+                total: { $sum: "$pricing.totalPayable" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    // ---------------- FORMAT FIXED 4 PERIODS ----------------
+
+    const weeklyResult = [];
+    const monthlyResult = [];
+    const yearlyResult = [];
+
+    // Weekly (Current + 3 previous)
+    for (let i = 0; i < 4; i++) {
+      const date = new Date();
+      date.setDate(now.getDate() - i * 7);
+
+      const year = date.getFullYear();
+      const week = getISOWeek(date);
+
+      const found = analytics.weekly.find(
+        (w) => w._id.year === year && w._id.week === week
+      );
+
+      weeklyResult.push({
+        label: i === 0 ? "currentWeek" : `${i}weekAgo`,
+        year,
+        week,
+        total: found ? found.total : 0,
+      });
+    }
+
+    // Monthly
+    for (let i = 0; i < 4; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      const found = analytics.monthly.find(
+        (m) => m._id.year === year && m._id.month === month
+      );
+
+      monthlyResult.push({
+        label: i === 0 ? "currentMonth" : `${i}monthAgo`,
+        year,
+        month,
+        total: found ? found.total : 0,
+      });
+    }
+
+    // Yearly
+    for (let i = 0; i < 4; i++) {
+      const year = now.getFullYear() - i;
+
+      const found = analytics.yearly.find(
+        (y) => y._id.year === year
+      );
+
+      yearlyResult.push({
+        label: i === 0 ? "currentYear" : `${i}yearAgo`,
+        year,
+        total: found ? found.total : 0,
+      });
+    }
+
+    return res.status(200).json({
+      message: "Revenue analytics fetched successfully",
+      data: {
+        daily: analytics?.daily?.[0]?.total || 0,
+        weekly: weeklyResult,
+        monthly: monthlyResult,
+        yearly: yearlyResult,
+      },
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+exports.getRevenueBreakdown = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // ---------------- DATE RANGES ----------------
+    const startOf4WeeksAgo = new Date();
+    startOf4WeeksAgo.setDate(now.getDate() - 28);
+
+    const startOf4MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+
+    const startOf4YearsAgo = new Date(now.getFullYear() - 3, 0, 1);
+
+    // ---------------- AGGREGATION ----------------
+    const [analytics] = await Order.aggregate([
+      // Step 1: Only delivered orders, widest range (4 years) for index efficiency
+      {
+        $match: {
+          orderStatus: "delivered",
+          createdAt: { $gte: startOf4YearsAgo, $lte: now },
+        },
+      },
+
+      // Step 2: Unwind orders array so each pet sub-order becomes its own doc
+      { $unwind: "$orders" },
+
+      // Step 3: Compute per sub-order totals for recipes, starter, extras
+      {
+        $addFields: {
+          subRecipesTotal: {
+            $sum: {
+              $map: {
+                input: "$orders.recipes",
+                as: "r",
+                in: { $multiply: ["$$r.price", "$$r.qty"] },
+              },
+            },
+          },
+          subStarterTotal: { $ifNull: ["$orders.starter.price", 0] },
+          subExtrasTotal: {
+            $sum: {
+              $map: {
+                input: "$orders.extras",
+                as: "e",
+                in: { $multiply: ["$$e.price", "$$e.qty"] },
+              },
+            },
+          },
+        },
+      },
+
+      // Step 4: Facet into weekly / monthly / yearly
+      {
+        $facet: {
+          weekly: [
+            { $match: { createdAt: { $gte: startOf4WeeksAgo, $lte: now } } },
+            {
+              $group: {
+                _id: null,
+                recipesTotal: { $sum: "$subRecipesTotal" },
+                starterTotal: { $sum: "$subStarterTotal" },
+                extrasTotal: { $sum: "$subExtrasTotal" },
+              },
+            },
+          ],
+
+          monthly: [
+            { $match: { createdAt: { $gte: startOf4MonthsAgo, $lte: now } } },
+            {
+              $group: {
+                _id: null,
+                recipesTotal: { $sum: "$subRecipesTotal" },
+                starterTotal: { $sum: "$subStarterTotal" },
+                extrasTotal: { $sum: "$subExtrasTotal" },
+              },
+            },
+          ],
+
+          yearly: [
+            {
+              $group: {
+                _id: null,
+                recipesTotal: { $sum: "$subRecipesTotal" },
+                starterTotal: { $sum: "$subStarterTotal" },
+                extrasTotal: { $sum: "$subExtrasTotal" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    // ---------------- EXTRACT TOTALS ----------------
+    const weekly  = analytics?.weekly?.[0]  || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
+    const monthly = analytics?.monthly?.[0] || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
+    const yearly  = analytics?.yearly?.[0]  || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
+
+    return res.status(200).json({
+      message: "Revenue breakdown fetched successfully",
+      data: {
+        // Last 4 weeks
+        recipesForLastFourWeeks: weekly.recipesTotal,
+        starterForLastFourWeeks: weekly.starterTotal,
+        extrasForLastFourWeeks:  weekly.extrasTotal,
+
+        // Last 4 months
+        recipesForLastFourMonths: monthly.recipesTotal,
+        starterForLastFourMonths: monthly.starterTotal,
+        extrasForLastFourMonths:  monthly.extrasTotal,
+
+        // Last 4 years
+        recipesForLastFourYears: yearly.recipesTotal,
+        starterForLastFourYears: yearly.starterTotal,
+        extrasForLastFourYears:  yearly.extrasTotal,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+
+exports.getRevenueAnalytics1 = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Helper function to get start of week (Monday)
+    const getStartOfWeek = (date, weeksAgo = 0) => {
+      const d = new Date(date);
+      d.setDate(d.getDate() - d.getDay() + 1 - weeksAgo * 7); // ISO week Monday
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    // Helper function to get start of month
+    const getStartOfMonth = (date, monthsAgo = 0) => {
+      return new Date(date.getFullYear(), date.getMonth() - monthsAgo, 1);
+    };
+
+    // Helper function to get start of year
+    const getStartOfYear = (date, yearsAgo = 0) => {
+      return new Date(date.getFullYear() - yearsAgo, 0, 1);
+    };
+
+    const revenueStatuses = ["delivered"];
+
+    // =============== AGGREGATION ===============
+    const [analytics] = await Order.aggregate([
+      { $match: { orderStatus: { $in: revenueStatuses } } },
+      {
+        $facet: {
+          allOrders: [
+            {
+              $project: {
+                createdAt: 1,
+                recipesRevenue: { $sum: "$orders.recipes.price" },
+                starterRevenue: "$orders.starter.price",
+                extrasRevenue: { $sum: "$orders.extras.price" },
+                totalRevenue: "$pricing.totalPayable",
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const orders = analytics?.allOrders || [];
+
+    // =============== BUILD BREAKDOWN ===============
+    const buildTimeArray = (type, getStartFn) => {
+      const arr = [];
+      for (let i = 0; i < 4; i++) {
+        const start = getStartFn(now, i);
+        const end =
+          type === "weekly"
+            ? new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000)
+            : type === "monthly"
+            ? new Date(now.getFullYear(), start.getMonth() + 1, 1)
+            : type === "yearly"
+            ? new Date(start.getFullYear() + 1, 0, 1)
+            : new Date();
+
+        const periodOrders = orders.filter(
+          (o) => o.createdAt >= start && o.createdAt < end
+        );
+
+        const sum = periodOrders.reduce(
+          (acc, o) => {
+            acc.recipes += o.recipesRevenue || 0;
+            acc.starter += o.starterRevenue || 0;
+            acc.extras += o.extrasRevenue || 0;
+            acc.total += o.totalRevenue || 0;
+            return acc;
+          },
+          { recipes: 0, starter: 0, extras: 0, total: 0 }
+        );
+
+        arr.push(sum);
+      }
+      return arr;
+    };
+
+    const weekly = buildTimeArray("weekly", getStartOfWeek);
+    const monthly = buildTimeArray("monthly", getStartOfMonth);
+    const yearly = buildTimeArray("yearly", getStartOfYear);
+
+    // Daily breakdown
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dailyOrders = orders.filter((o) => o.createdAt >= todayStart && o.createdAt <= now);
+    const daily = dailyOrders.reduce(
+      (acc, o) => {
+        acc.recipes += o.recipesRevenue || 0;
+        acc.starter += o.starterRevenue || 0;
+        acc.extras += o.extrasRevenue || 0;
+        acc.total += o.totalRevenue || 0;
+        return acc;
+      },
+      { recipes: 0, starter: 0, extras: 0, total: 0 }
+    );
+
+    return res.status(200).json({
+      message: "Revenue analytics fetched successfully",
+      data: {
+        daily,
+        weekly,
+        monthly,
+        yearly,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getAdvancedKPIs = async (req, res) => {
+  try {
+    const now = new Date();
+
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    // ===============================
+    // 1️⃣ AOV CALCULATION
+    // ===============================
+
+    const aovData = await Order.aggregate([
+      {
+        $match: {
+          orderStatus: "delivered",
+          createdAt: { $gte: previousMonthStart },
+        },
+      },
+      {
+        $addFields: {
+          period: {
+            $cond: [
+              { $gte: ["$createdAt", currentMonthStart] },
+              "current",
+              "previous",
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$period",
+          revenue: { $sum: "$pricing.totalPayable" },
+          orders: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const current = aovData.find(d => d._id === "current") || { revenue: 0, orders: 0 };
+    const previous = aovData.find(d => d._id === "previous") || { revenue: 0, orders: 0 };
+
+    const currentAOV = current.orders ? current.revenue / current.orders : 0;
+    const previousAOV = previous.orders ? previous.revenue / previous.orders : 0;
+
+    const aovPercentage = previousAOV
+      ? ((currentAOV - previousAOV) / previousAOV) * 100
+      : 0;
+
+    // ===============================
+    // 2️⃣ CUSTOMER RETENTION
+    // ===============================
+
+    const retentionData = await Order.aggregate([
+      {
+        $match: {
+          orderStatus: "delivered",
+          createdAt: { $gte: previousMonthStart },
+        },
+      },
+      {
+        $addFields: {
+          period: {
+            $cond: [
+              { $gte: ["$createdAt", currentMonthStart] },
+              "current",
+              "previous",
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          periods: { $addToSet: "$period" },
+        },
+      },
+    ]);
+
+    const retainedCustomers = retentionData.filter(c =>
+      c.periods.includes("current") && c.periods.includes("previous")
+    ).length;
+
+    const previousCustomers = retentionData.filter(c =>
+      c.periods.includes("previous")
+    ).length;
+
+    const retentionRate = previousCustomers
+      ? (retainedCustomers / previousCustomers) * 100
+      : 0;
+
+    // ===============================
+    // 3️⃣ REPEAT PURCHASE RATE
+    // ===============================
+
+    const repeatData = await Order.aggregate([
+      {
+        $match: { orderStatus: "delivered" },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          totalOrders: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totalCustomers = repeatData.length;
+    const repeatCustomers = repeatData.filter(c => c.totalOrders > 1).length;
+
+    const repeatRate = totalCustomers
+      ? (repeatCustomers / totalCustomers) * 100
+      : 0;
+
+    // ===============================
+    // RESPONSE
+    // ===============================
+
+    const buildObject = (value, percentage) => ({
+      value: Number(value.toFixed(2)),
+      percentage: Number(percentage.toFixed(2)),
+      trend:
+        percentage > 0 ? "up" :
+        percentage < 0 ? "down" :
+        "same",
+    });
+
+    return res.status(200).json({
+      message: "Advanced KPIs fetched successfully",
+      data: {
+        AverageOrderValue: buildObject(currentAOV, aovPercentage),
+        CustomerRetention: buildObject(retentionRate, 0), // retention comparison can be expanded
+        RepeatPurchaseRate: buildObject(repeatRate, 0),
+      },
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// Helper function for ISO week
+function getISOWeek(date) {
+  const temp = new Date(date);
+  temp.setHours(0, 0, 0, 0);
+  temp.setDate(temp.getDate() + 4 - (temp.getDay() || 7));
+  const yearStart = new Date(temp.getFullYear(), 0, 1);
+  return Math.ceil(((temp - yearStart) / 86400000 + 1) / 7);
+}
+
+//  /orders/:orderId/dispute
+exports.requestDispute = async (req, res) => {
+  console.log("Request Dispute req.body", req.body);
+
+  try {
+    const { orderId } = req.params;
+    const { reason, note, evidence } = req.body;
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Only allow dispute for delivered or paid orders
+    if (!["delivered", "paid"].includes(order.orderStatus)) {
+      return res
+        .status(400)
+        .json({ message: "Dispute can only be requested for delivered or paid orders" });
+    }
+
+    // Prevent duplicate disputes
+    if (order.dispute && order.dispute.status !== "none") {
+      return res
+        .status(400)
+        .json({ message: "A dispute has already been requested for this order" });
+    }
+
+    // Update dispute
+    order.dispute = {
+      status: "requested",
+      reason,
+      note,
+      evidence: Array.isArray(evidence) ? evidence : [],
+      requestedAt: new Date(),
+    };
+// console.log("Updated Order with Dispute:", order);
+    // order.orderStatus = "disputed"; // optional
+    await order.save();
+    console.log("Order saved with dispute:", order);
+
+    res.json({ message: "Dispute requested successfully", order });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+// PATCH request for admin to resolve a dispute
+exports.resolveDispute = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status, note } = req.body; // status = "approved" or "rejected"
+
+    // Validate input
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // Find the order
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Check if there is a pending dispute
+    if (!order.dispute || order.dispute.status !== "requested") {
+      return res.status(400).json({ message: "No pending dispute to resolve" });
+    }
+
+    // Update admin resolution
+    order.dispute.adminResolution = {
+      status,
+      note: note || "",
+      resolvedAt: new Date(),
+    };
+
+    // Update dispute status based on admin decision
+    order.dispute.status = status; // approved or rejected
+
+    // Optional: Update orderStatus based on dispute resolution
+    // if (status === "approved") {
+    //   order.orderStatus = "disputed"; // keep as disputed or add a new enum like 'dispute_approved'
+    // } else if (status === "rejected") {
+    //   order.orderStatus = "disputed"; // or 'dispute_rejected' if you want separate enum
+    // }
+
+    await order.save();
+
+    res.json({ message: `Dispute ${status}`, order });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };

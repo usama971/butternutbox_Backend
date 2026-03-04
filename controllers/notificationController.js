@@ -43,13 +43,15 @@ console.log("userId:",req.user.userId);
 };
 
 exports.markNotificationAsRead = async (req, res) => {
+  console.log("Mark Notification As Read req.body", req.params.id, req.user.userId);
+  // return res.status(200).json({ message: "Mark Notification As Read req.body" });
   try {
     const recipientModel = getRecipientModelFromToken(req.user);
+    console.log("recipientModel", recipientModel);
     const notification = await Notification.findOneAndUpdate(
       {
         _id: req.params.id,
-        recipientId: req.user.userId,
-        recipientModel,
+        // recipientId: req.user.userId,
       },
       { $set: { isRead: true, readAt: new Date() } },
       { new: true },
