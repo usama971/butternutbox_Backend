@@ -24,18 +24,22 @@ router.post(
     console.log("✅ Event received:", event.type);
 
     switch (event.type) {
-      case "checkout.session.completed":
+      case "checkout.session.completed": {
         console.log("💰 Payment successful");
-
-        // Call the helper function
         const session = event.data.object;
         console.log("Session ID:", session.id, "Customer:", session.customer, "Subscription:", session.subscription);
-        processCheckoutSession(
-          session.id,
-          session.customer,
-          session.subscription || ""
-        );
+        try {
+          await processCheckoutSession(
+            session.id,
+            session.customer,
+            session.subscription || ""
+          );
+        } catch (err) {
+          console.error("❌ processCheckoutSession error:", err);
+          return res.status(500).json({ error: err.message });
+        }
         break;
+      }
 
       default:
         console.log("Unhandled event:", event.type);

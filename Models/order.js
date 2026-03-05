@@ -67,14 +67,7 @@ const OrderSchema = new mongoose.Schema(
     // totalAmount: { type: Number, required: true },
     orderStatus: {
       type: String,
-      enum: [
-        "processing",
-        "paid",
-        "dispatched",
-        "delivered",
-        "cancelled",
-        "disputed",
-      ],
+      enum: ["processing", "paid", "dispatched", "delivered", "cancelled","disputed"],
       default: "processing",
     },
     cancelReason: {
@@ -152,10 +145,11 @@ const OrderSchema = new mongoose.Schema(
       processedAt: { type: Date },
       transactionId: { type: String },
     },
+
     dispute: {
       status: {
         type: String,
-        enum: ["none", "requested", "under_review", "approved", "rejected"],
+        enum: ["none", "requested", "under_review", "resolved", "rejected"],
         default: "none",
       },
       reason: {

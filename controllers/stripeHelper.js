@@ -18,6 +18,12 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
   const checkout = await CheckoutSession.findOne({ sessionId });
   if (!checkout) throw new Error("Checkout session not found");
 
+  // Idempotency: skip if already processed
+  if (checkout.isProcessed) {
+    console.log("✅ Checkout session already processed, skipping:", sessionId);
+    return;
+  }
+
   const { pupParent, orders, pricing } = checkout.payload;
   console.log("✅ Fetched checkout payload:11111111111", checkout.payload);
   console.log("✅ Fetched checkout payload:111  orders", orders);
@@ -169,6 +175,10 @@ if (stripeSubscriptionId) {
 
 
  
+
+  // 7️⃣ Mark checkout as processed (idempotency)
+  checkout.isProcessed = true;
+  await checkout.save();
 
   console.log("✅ User, pets, orders & subscriptions created successfully");
 }

@@ -12,9 +12,11 @@ const SubscriptionSchema = new mongoose.Schema({
   // petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', required: true },
   stripeSubscriptionId: { type: String, required: true },
   stripeCustomerId: { type: String, required: true },
-  status: { type: String, enum: ["active", "paused", "cancelled"], default: "active" },
+  status: { type: String, enum: ["active", "paused", "cancelled", "past_due"], default: "active" },
   frequencyDays: { type: Number, default: 14 },
   nextOrderDate: { type: Date, required: true },
+  skipNextDelivery: { type: Boolean, default: false },
+  skippedUntilDate: { type: Date },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subscription', SubscriptionSchema);
