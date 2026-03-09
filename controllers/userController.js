@@ -110,7 +110,7 @@ exports.getUsers = async (req, res) => {
     let adminId = req.user.userId;
 
     // const users = await User.find({ adminId });
-    const users = await User.find().select("name email phone address");
+    const users = await User.find().select("name email phone address updatedAt createdAt");
     res.json({ message: "Users fetched", data: users });
   } catch (err) {
     res.status(500).json({ error: err.message });

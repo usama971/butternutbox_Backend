@@ -677,10 +677,10 @@ exports.getAllOrdersAdmin = async (req, res) => {
         path: "userId",
         select: "-password -roleId -RefreshToken",
       })
-      // .populate({
-      //   path: "orders.petId",   // 👈 NESTED PATH
-      //   model: "Pet",
-      // })
+      .populate({
+        path: "orders.petId",   // 👈 NESTED PATH
+        model: "Pet",
+      })
       .lean();
 
     res.status(200).json({
