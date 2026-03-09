@@ -13,6 +13,28 @@ const PromoCode = require("../Models/promoCode");
 const Recipe = require("../Models/recipe");
 const { createAdminNotifications } = require("../services/notificationService");
 
+async function decrementRecipeStock(subOrders) {
+  const qtyByRecipe = new Map();
+  for (const so of subOrders || []) {
+    const items = [
+      ...(so.recipes || []),
+      ...(so.extras || []),
+    ];
+    for (const item of items) {
+      const rid = item?.recipeId?.toString?.();
+      if (!rid) continue;
+      const qty = Math.max(0, Number(item.qty) || 1);
+      qtyByRecipe.set(rid, (qtyByRecipe.get(rid) || 0) + qty);
+    }
+  }
+  for (const [recipeId, qty] of qtyByRecipe) {
+    await Recipe.updateOne(
+      { _id: recipeId, trackStock: true },
+      { $inc: { stock: -qty } }
+    );
+  }
+}
+
 async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscriptionId) {
   // 1️⃣ Fetch saved checkout payload
   const checkout = await CheckoutSession.findOne({ sessionId });
@@ -134,6 +156,7 @@ const order = await Order.create({
 });
 
 console.log("✅ Order created successfully:", order._id);
+await decrementRecipeStock(order.orders);
 await createAdminNotifications({
   title: "New order created",
   message: `A new order ${order.orderID || order._id} has been created.`,

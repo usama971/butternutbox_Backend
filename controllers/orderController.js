@@ -11,6 +11,7 @@ const userValidation = require("../validation/userValidation");
 
 const Subscription = require("../Models/subscription");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const userController = require("./userController");
 const { cancelOrderValidation } = require("../validation/orderValidation");
 
 const sendEmail = require("../services/emailService");
@@ -1390,6 +1391,124 @@ async function captureHandlerResponse(handler, req) {
   });
 }
 
+exports.getDashboardCombined = async (req, res) => {
+  try {
+    const [usersMonthlyByWeek, orderStatusCounts, dashboardStats] = await Promise.all([
+      captureHandlerResponse(userController.getUsersMonthlyByWeek, req),
+      captureHandlerResponse(exports.getOrderStatusCounts, req),
+      captureHandlerResponse(exports.getDashboardStats, req),
+    ]);
+
+    return res.status(200).json({
+      message: "Dashboard data fetched successfully",
+      data: {
+        usersMonthlyByWeek: usersMonthlyByWeek.data,
+        orderStatusCounts: orderStatusCounts.data,
+        dashboardStats: dashboardStats.data,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getOrderStatusCounts = async (req, res) => {
+  try {
+    const [totalOrders, cancelled, delivered, disputed] = await Promise.all([
+      Order.countDocuments(),
+      Order.countDocuments({ orderStatus: "cancelled" }),
+      Order.countDocuments({ orderStatus: "delivered" }),
+      Order.countDocuments({ "dispute.adminResolution.status": { $in: ["approved", "rejected"] } }),
+    ]);
+
+    res.status(200).json({
+      message: "Order status counts fetched successfully",
+      data: {
+        totalOrders,
+        cancelled,
+        delivered,
+        disputed,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const revenueStatuses = ["paid", "processing", "dispatched", "delivered"];
+    const now = new Date();
+    const periodDays = 30;
+    const currentStart = new Date(now);
+    currentStart.setDate(currentStart.getDate() - periodDays);
+    currentStart.setHours(0, 0, 0, 0);
+    const previousStart = new Date(currentStart);
+    previousStart.setDate(previousStart.getDate() - periodDays);
+
+    const [
+      totalUsers,
+      totalOrders,
+      totalRevenueResult,
+      currentUsers,
+      previousUsers,
+      currentOrders,
+      previousOrders,
+      currentRevenue,
+      previousRevenue,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Order.countDocuments({ orderStatus: { $in: revenueStatuses } }),
+      Order.aggregate([
+        { $match: { orderStatus: { $in: revenueStatuses } } },
+        { $group: { _id: null, total: { $sum: "$pricing.totalPayable" } } },
+      ]),
+      User.countDocuments({ createdAt: { $gte: currentStart } }),
+      User.countDocuments({ createdAt: { $gte: previousStart, $lt: currentStart } }),
+      Order.countDocuments({ orderStatus: { $in: revenueStatuses }, createdAt: { $gte: currentStart } }),
+      Order.countDocuments({ orderStatus: { $in: revenueStatuses }, createdAt: { $gte: previousStart, $lt: currentStart } }),
+      Order.aggregate([
+        { $match: { orderStatus: { $in: revenueStatuses }, createdAt: { $gte: currentStart } } },
+        { $group: { _id: null, total: { $sum: "$pricing.totalPayable" } } },
+      ]),
+      Order.aggregate([
+        { $match: { orderStatus: { $in: revenueStatuses }, createdAt: { $gte: previousStart, $lt: currentStart } } },
+        { $group: { _id: null, total: { $sum: "$pricing.totalPayable" } } },
+      ]),
+    ]);
+
+    const totalRevenue = totalRevenueResult[0]?.total ?? 0;
+    const currRev = currentRevenue[0]?.total ?? 0;
+    const prevRev = previousRevenue[0]?.total ?? 0;
+
+    const pctChange = (curr, prev) =>
+      prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 1000) / 10;
+
+    res.status(200).json({
+      message: "Dashboard stats fetched successfully",
+      data: {
+        totalUsers: {
+          value: totalUsers,
+          percentageChange: pctChange(currentUsers, previousUsers),
+          trend: currentUsers >= previousUsers ? "up" : "down",
+        },
+        totalOrders: {
+          value: totalOrders,
+          percentageChange: pctChange(currentOrders, previousOrders),
+          trend: currentOrders >= previousOrders ? "up" : "down",
+        },
+        totalRevenue: {
+          value: totalRevenue,
+          percentageChange: pctChange(currRev, prevRev),
+          trend: currRev >= prevRev ? "up" : "down",
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getAnalyticsCombined = async (req, res) => {
   try {
     const [revenueAnalytics, revenueBreakdown, advancedKPIs] = await Promise.all([
@@ -1514,6 +1633,88 @@ exports.resolveDispute = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getUsersMonthlyByWeek = async (req, res) => {
+  try {
+    const now = new Date();
+    const currYear = now.getFullYear();
+    const currMonth = now.getMonth();
+
+    const getWeekRanges = (year, month) => {
+      const weeks = [];
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const numDays = last.getDate();
+      let weekNum = 1;
+      for (let day = 1; day <= numDays; day += 7) {
+        const weekStart = new Date(year, month, day, 0, 0, 0, 0);
+        const weekEndDay = Math.min(day + 7, numDays + 1);
+        const weekEnd = new Date(year, month, weekEndDay, 0, 0, 0, 0);
+        weeks.push({
+          week: weekNum,
+          weekLabel: `Week ${weekNum}`,
+          startDate: weekStart.toISOString(),
+          endDate: weekEnd.toISOString(),
+          start: weekStart,
+          end: weekEnd,
+        });
+        weekNum++;
+      }
+      return weeks;
+    };
+
+    const currWeeks = getWeekRanges(currYear, currMonth);
+    const prevYear = currMonth === 0 ? currYear - 1 : currYear;
+    const prevMonth = currMonth === 0 ? 11 : currMonth - 1;
+    const prevWeeks = getWeekRanges(prevYear, prevMonth);
+
+    const countForWeek = async (start, end) => {
+      return User.countDocuments({
+        createdAt: { $gte: start, $lt: end },
+      });
+    };
+
+    const currentMonth = await Promise.all(
+      currWeeks.map(async (w) => ({
+        week: w.week,
+        weekLabel: w.weekLabel,
+        startDate: w.startDate,
+        endDate: w.endDate,
+        count: await countForWeek(w.start, w.end),
+      }))
+    );
+
+    const previousMonth = await Promise.all(
+      prevWeeks.map(async (w) => ({
+        week: w.week,
+        weekLabel: w.weekLabel,
+        startDate: w.startDate,
+        endDate: w.endDate,
+        count: await countForWeek(w.start, w.end),
+      }))
+    );
+
+    res.status(200).json({
+      message: "Users by month (week-wise) fetched successfully",
+      data: {
+        currentMonth: {
+          year: currYear,
+          month: currMonth + 1,
+          monthLabel: new Date(currYear, currMonth).toLocaleString("default", { month: "long" }),
+          weeks: currentMonth,
+        },
+        previousMonth: {
+          year: prevYear,
+          month: prevMonth + 1,
+          monthLabel: new Date(prevYear, prevMonth).toLocaleString("default", { month: "long" }),
+          weeks: previousMonth,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 

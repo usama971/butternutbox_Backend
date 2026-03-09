@@ -34,6 +34,7 @@ router.patch(
   "/updateStatus/:id",
   recipeController.updateRecipeStatus
 );
+router.patch("/:id/stock", recipeController.updateRecipeStock);
 router.get('/', recipeController.getRecipes);
 
 module.exports = router;

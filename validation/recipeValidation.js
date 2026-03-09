@@ -34,6 +34,12 @@ const petAllergiesItemSchema = Joi.object({
   petId: Joi.string().optional(),
 });
 
+const updateRecipeStockValidation = Joi.object({
+  stock: Joi.number().min(0).required(),
+  lowStockThreshold: Joi.number().min(0).optional(),
+  trackStock: Joi.boolean().optional(),
+});
+
 const recipesByAllergiesValidation = Joi.object({
   pets: Joi.array()
     .items(petAllergiesItemSchema)
@@ -49,5 +55,6 @@ const recipesByAllergiesValidation = Joi.object({
 module.exports = {
   recipeValidation,
   updateRecipeValidation,
+  updateRecipeStockValidation,
   recipesByAllergiesValidation,
 };

@@ -195,6 +195,87 @@ exports.getUserAllDetails = async (req, res) => {
   }
 };
 
+exports.getUsersMonthlyByWeek = async (req, res) => {
+  try {
+    const now = new Date();
+    const currYear = now.getFullYear();
+    const currMonth = now.getMonth();
+
+    const getWeekRanges = (year, month) => {
+      const weeks = [];
+      const last = new Date(year, month + 1, 0);
+      const numDays = last.getDate();
+      let weekNum = 1;
+      for (let day = 1; day <= numDays; day += 7) {
+        const weekStart = new Date(year, month, day, 0, 0, 0, 0);
+        const weekEndDay = Math.min(day + 7, numDays + 1);
+        const weekEnd = new Date(year, month, weekEndDay, 0, 0, 0, 0);
+        weeks.push({
+          week: weekNum,
+          weekLabel: `Week ${weekNum}`,
+          startDate: weekStart.toISOString(),
+          endDate: weekEnd.toISOString(),
+          start: weekStart,
+          end: weekEnd,
+        });
+        weekNum++;
+      }
+      return weeks;
+    };
+
+    const currWeeks = getWeekRanges(currYear, currMonth);
+    const prevYear = currMonth === 0 ? currYear - 1 : currYear;
+    const prevMonth = currMonth === 0 ? 11 : currMonth - 1;
+    const prevWeeks = getWeekRanges(prevYear, prevMonth);
+
+    const countForWeek = async (start, end) => {
+      return User.countDocuments({
+        createdAt: { $gte: start, $lt: end },
+      });
+    };
+
+    const currentMonth = await Promise.all(
+      currWeeks.map(async (w) => ({
+        week: w.week,
+        weekLabel: w.weekLabel,
+        startDate: w.startDate,
+        endDate: w.endDate,
+        count: await countForWeek(w.start, w.end),
+      }))
+    );
+
+    const previousMonth = await Promise.all(
+      prevWeeks.map(async (w) => ({
+        week: w.week,
+        weekLabel: w.weekLabel,
+        startDate: w.startDate,
+        endDate: w.endDate,
+        count: await countForWeek(w.start, w.end),
+      }))
+    );
+
+    res.status(200).json({
+      message: "Users by month (week-wise) fetched successfully",
+      data: {
+        currentMonth: {
+          year: currYear,
+          month: currMonth + 1,
+          monthLabel: new Date(currYear, currMonth).toLocaleString("default", { month: "long" }),
+          weeks: currentMonth,
+        },
+        previousMonth: {
+          year: prevYear,
+          month: prevMonth + 1,
+          monthLabel: new Date(prevYear, prevMonth).toLocaleString("default", { month: "long" }),
+          weeks: previousMonth,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.blockUnblockUser = async (req, res) => {
   try {
     const { userId } = req.params;
