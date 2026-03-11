@@ -19,8 +19,8 @@ router.patch(
 router.get("/",authorizePermissions(['MANAGE_USERS']), userController.getUsers);
 router.get("/info", userController.getUsersWithTotalPetsAndOrders);
 // router.get("/monthly-by-week", userController.getUsersMonthlyByWeek);
-router.get("/:id", userController.getUserAllDetails);
-router.patch("/block/:userId", userController.blockUnblockUser);
+router.get("/:id",authorizePermissions(['MANAGE_USERS']), userController.getUserAllDetails);
+router.patch("/block/:userId" ,authorizePermissions(['MANAGE_USERS']), userController.blockUnblockUser);
 
 // PATCH /api/admin/user/block/:userId
 

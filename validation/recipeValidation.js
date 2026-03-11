@@ -9,6 +9,9 @@ const recipeValidation = Joi.object({
   price: Joi.number().required(),
   category: Joi.string().valid("extras", "mainCourse").required(),
   status: Joi.string().valid('active', 'inactive').default('active'),
+  stock: Joi.number().min(0).required(),
+  lowStockThreshold: Joi.number().min(0).optional(),
+  trackStock: Joi.boolean().optional(),
   // image: Joi.object({
   //   url: Joi.string().uri().optional(),
   //   publicId: Joi.string().optional(),
@@ -22,6 +25,9 @@ const updateRecipeValidation = Joi.object({
   nutritionalInfo: Joi.string().allow(''),
   price: Joi.number(),
   category: Joi.string().valid('extras', 'mainCourse'),
+  stock: Joi.number().min(0).required(),
+  lowStockThreshold: Joi.number().min(0).optional(),
+  trackStock: Joi.boolean().optional(),
   image: Joi.object({
     url: Joi.string().uri(),
     publicId: Joi.string()

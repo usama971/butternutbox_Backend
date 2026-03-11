@@ -148,6 +148,7 @@ exports.updateRecipeStatus = async (req, res) => {
 
 exports.updateRecipeStock = async (req, res) => {
   try {
+    console.log("Update Recipe Stock req.body:", req.body);
     const recipeId = req.params.id;
     const adminId = req.user.userId;
     const { error, value } = updateRecipeStockValidation.validate(req.body);

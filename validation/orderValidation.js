@@ -42,6 +42,18 @@ const orderValidation = Joi.object({
     .valid("processing", "paid", "dispatched", "delivered", "cancelled","disputed")
     .default("processing"),
 
+     // Optional history
+     orderStatusHistory: Joi.array().items(
+      Joi.object({
+        status: Joi.string()
+          .valid("processing", "paid", "dispatched", "delivered", "cancelled", "disputed")
+          .required(),
+        updatedAt: Joi.date().default(() => new Date()), // <-- only the function
+      })
+    ).optional(),
+
+    
+
   paymentMethod: Joi.string().allow("").optional(), // ✅ FIXED
 
   deliveredDate: Joi.date().allow(null),

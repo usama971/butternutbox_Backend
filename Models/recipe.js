@@ -14,7 +14,7 @@ const RecipeSchema = new mongoose.Schema({
     publicId: String
   },
   stock: { type: Number, default: 0, min: 0 },
-  lowStockThreshold: { type: Number, default: 10, min: 0 },
+  lowStockThreshold: { type: Number, default: 1, min: 0 },
   trackStock: { type: Boolean, default: true },
 }, { timestamps: true });
 

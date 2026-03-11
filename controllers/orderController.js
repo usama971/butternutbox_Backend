@@ -264,18 +264,28 @@ exports.cancelOrder = async (req, res) => {
       await subscription.save();
     }
 
-    // 5️⃣ Update order with cancel reason & note
-    order.orderStatus = "cancelled";
-    order.cancelReason = cancelReason;
-    order.cancelNote = cancelNote || null;
-    order.cancelledAt = new Date();
-    // 🔥 Automatically trigger refund request
-    order.refund = {
-      status: "processing",
-      amount: order.pricing?.totalPayable || 0,
-      requestedAt: new Date(),
-    };
-    await order.save();
+    // 5️⃣ Update order with cancel reason & note + push to orderStatusHistory
+    const cancelledAt = new Date();
+    const statusEntry = { status: "cancelled", updatedAt: cancelledAt };
+
+    await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: {
+          orderStatus: "cancelled",
+          cancelReason,
+          cancelNote: cancelNote || null,
+          cancelledAt,
+          refund: {
+            status: "processing",
+            amount: order.pricing?.totalPayable || 0,
+            requestedAt: cancelledAt,
+          },
+        },
+        $push: { orderStatusHistory: statusEntry },
+      },
+      { new: true }
+    );
 
     await Promise.all([
       createUserNotification({
@@ -587,6 +597,7 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     }
 
     const order = await Order.findById(orderId).populate("userId");
+    
 
     if (!order) {
       return res.status(404).json({ error: "Order not found." });
@@ -600,7 +611,7 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
 
     if (order.refund?.status === "completed") {
       return res.status(400).json({
-        error: "Cannot update a refunded order.",
+        error: "Cannot update a completed order.",
       });
     }
 
@@ -624,12 +635,17 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
       });
     }
 
+    const statusEntry = { status, updatedAt: new Date() };
+    const updatePayload = {
+      $set: { orderStatus: status },
+      $push: { orderStatusHistory: statusEntry },
+    };
+
     if (status === "delivered") {
-      order.deliveredDate = new Date();
+      updatePayload.$set.deliveredDate = new Date();
     }
 
-    order.orderStatus = status;
-    await order.save();
+    await Order.findByIdAndUpdate(order._id, updatePayload, { new: true });
     await createUserNotification({
       userId: order.userId._id || order.userId,
       title: "Order status updated",
@@ -661,7 +677,7 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     // });
     return res.status(200).json({
       message: `Order updated to ${status}.`,
-      orderStatus: order.orderStatus,
+      orderStatus: status,
     });
   } catch (error) {
     return res.status(500).json({
