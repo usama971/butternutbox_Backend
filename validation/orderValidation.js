@@ -46,7 +46,7 @@ const orderValidation = Joi.object({
      orderStatusHistory: Joi.array().items(
       Joi.object({
         status: Joi.string()
-          .valid("processing", "paid", "dispatched", "delivered", "cancelled", "disputed")
+          // .valid("processing", "paid", "dispatched", "delivered", "cancelled", "disputed")
           .required(),
         updatedAt: Joi.date().default(() => new Date()), // <-- only the function
       })

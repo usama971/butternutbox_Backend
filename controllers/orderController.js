@@ -361,14 +361,23 @@ exports.requestReturn = async (req, res) => {
       });
     }
 
-    order.return = {
-      status: "requested",
-      reason,
-      note: note || null,
-      requestedAt: new Date(),
-    };
 
-    await order.save();
+    const statusEntry = { status: "return_requested", updatedAt: new Date() };
+    const updatePayload = {
+      // $set: { orderStatus: "return_requested" },
+      $set: { return: { status: "requested", reason, note: note || null, requestedAt: new Date() } },
+      $push: { orderStatusHistory: statusEntry },
+    };
+    // order.return = {
+    //   status: "requested",
+    //   reason,
+    //   note: note || null,
+    //   requestedAt: new Date(),
+    // };
+    
+
+    // await order.save();
+    await Order.findByIdAndUpdate(order._id, updatePayload, { new: true });
     await createUserNotification({
       userId: order.userId,
       title: "Return request submitted",
