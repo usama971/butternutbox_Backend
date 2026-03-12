@@ -165,7 +165,7 @@ const OrderSchema = new mongoose.Schema(
     dispute: {
       status: {
         type: String,
-        enum: ["none", "requested", "under_review", "resolved", "rejected"],
+        enum: ["none", "requested", "under_review", "approved", "rejected"],
         default: "none",
       },
       reason: {

@@ -442,7 +442,7 @@ exports.updateReturnStatus = async (req, res) => {
 
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (order.return.status !== "requested") {
+    if (!order.return || order.return.status !== "requested") {
       return res.status(400).json({
         error: "No pending return request found.",
       });
@@ -454,30 +454,41 @@ exports.updateReturnStatus = async (req, res) => {
       });
     }
 
-    // 🔥 Update return status
-    order.return.status = status;
-    order.return.processedAt = new Date();
+    const processedAt = new Date();
+    const statusEntry = { status: `return_${status}`, updatedAt: processedAt };
 
+    const returnUpdate = {
+      reason: order.return.reason,
+      note: order.return.note,
+      requestedAt: order.return.requestedAt,
+      status,
+      processedAt,
+    };
     if (status === "rejected") {
-      order.return.rejectionReason = rejectionReason || null;
-      order.return.rejectionNote = rejectionNote || null;
-      order.refund = {
-        status: "rejected",
-        amount: 0,
-        processedAt: new Date(),
-      };
+      returnUpdate.rejectionReason = rejectionReason || null;
+      returnUpdate.rejectionNote = rejectionNote || null;
     }
 
-    // 🔥 If approved → trigger refund request
-    if (status === "approved") {
-      order.refund = {
-        status: "processing",
-        amount: order.pricing?.totalPayable || 0,
-        requestedAt: new Date(),
-      };
-    }
+    const refundUpdate =
+      status === "rejected"
+        ? { status: "rejected", amount: 0, processedAt }
+        : {
+            status: "processing",
+            amount: order.pricing?.totalPayable || 0,
+            requestedAt: processedAt,
+          };
 
-    await order.save();
+    await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: {
+          return: returnUpdate,
+          refund: refundUpdate,
+        },
+        $push: { orderStatusHistory: statusEntry },
+      },
+      { new: true }
+    );
     await createUserNotification({
       userId: order.userId._id || order.userId,
       title: `Return ${status}`,
@@ -1582,11 +1593,11 @@ exports.requestDispute = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Only allow dispute for delivered or paid orders
-    if (!["delivered", "paid"].includes(order.orderStatus)) {
+    // Only delivered orders can be disputed
+    if (order.orderStatus !== "delivered") {
       return res
         .status(400)
-        .json({ message: "Dispute can only be requested for delivered or paid orders" });
+        .json({ message: "Dispute can only be requested for delivered orders" });
     }
 
     // Prevent duplicate disputes
@@ -1596,20 +1607,28 @@ exports.requestDispute = async (req, res) => {
         .json({ message: "A dispute has already been requested for this order" });
     }
 
-    // Update dispute
-    order.dispute = {
+    const requestedAt = new Date();
+    const statusEntry = { status: "dispute_requested", updatedAt: requestedAt };
+
+    const disputeUpdate = {
       status: "requested",
       reason,
       note,
       evidence: Array.isArray(evidence) ? evidence : [],
-      requestedAt: new Date(),
+      requestedAt,
+      adminResolution: { status: "pending" },
     };
-// console.log("Updated Order with Dispute:", order);
-    // order.orderStatus = "disputed"; // optional
-    await order.save();
-    console.log("Order saved with dispute:", order);
 
-    res.json({ message: "Dispute requested successfully", order });
+    const updatedOrder = await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: { dispute: disputeUpdate },
+        $push: { orderStatusHistory: statusEntry },
+      },
+      { new: true }
+    );
+
+    res.json({ message: "Dispute requested successfully", order: updatedOrder });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1626,35 +1645,42 @@ exports.resolveDispute = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Find the order
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Check if there is a pending dispute
     if (!order.dispute || order.dispute.status !== "requested") {
       return res.status(400).json({ message: "No pending dispute to resolve" });
     }
 
-    // Update admin resolution
-    order.dispute.adminResolution = {
-      status,
-      note: note || "",
-      resolvedAt: new Date(),
+    const resolvedAt = new Date();
+    const disputeStatus = status === "approved" ? "approved" : "rejected";
+
+    const disputeUpdate = {
+      reason: order.dispute.reason,
+      note: order.dispute.note,
+      evidence: order.dispute.evidence || [],
+      requestedAt: order.dispute.requestedAt,
+      status: disputeStatus,
+      adminResolution: {
+        status,
+        note: note || "",
+        resolvedAt,
+      },
+      processedAt: resolvedAt,
     };
 
-    // Update dispute status based on admin decision
-    order.dispute.status = status; // approved or rejected
+    const statusEntry = { status: `dispute_${status}`, updatedAt: resolvedAt };
 
-    // Optional: Update orderStatus based on dispute resolution
-    // if (status === "approved") {
-    //   order.orderStatus = "disputed"; // keep as disputed or add a new enum like 'dispute_approved'
-    // } else if (status === "rejected") {
-    //   order.orderStatus = "disputed"; // or 'dispute_rejected' if you want separate enum
-    // }
+    const updatedOrder = await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: { dispute: disputeUpdate },
+        $push: { orderStatusHistory: statusEntry },
+      },
+      { new: true }
+    );
 
-    await order.save();
-
-    res.json({ message: `Dispute ${status}`, order });
+    res.json({ message: `Dispute ${status}`, order: updatedOrder });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
