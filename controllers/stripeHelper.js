@@ -149,6 +149,7 @@ const order = await Order.create({
     totalPayable: pricing.totalPayable,
   },
   orderStatus: "paid",
+  orderStatusHistory: [{ status: "paid", updatedAt: new Date() }],
   paymentMethod: "stripe",
   stripeSessionId: sessionId,
   stripeSubscriptionId: stripeSubscriptionId || null,

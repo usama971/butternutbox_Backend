@@ -60,7 +60,7 @@ exports.getOrders = async (req, res) => {
     // 1️⃣ Fetch all orders
     // const orders = await Order.find({ userId: userId })
     const orders = await Order.find({ userId: userId })
-    // const orders = await Order.find()
+      // const orders = await Order.find()
       .populate("userId")
       .select("-password -roleId")
       .populate({
@@ -249,9 +249,9 @@ exports.cancelOrder = async (req, res) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     // 3️⃣ Only processing or paid orders can be cancelled
-    if (order.orderStatus !== "processing" && order.orderStatus !== "paid") {
+    if (order.orderStatus !== "processing" && order.orderStatus !== "paid" && order.orderStatus !== "dispatched") {
       return res.status(400).json({
-        error: `Cannot cancel order because its status is "${order.orderStatus}". Only processing or paid orders can be cancelled.`,
+        error: `Cannot cancel order because its status is "${order.orderStatus}". Only processing or paid or dispatched orders can be cancelled.`,
       });
     }
 
@@ -374,7 +374,7 @@ exports.requestReturn = async (req, res) => {
     //   note: note || null,
     //   requestedAt: new Date(),
     // };
-    
+
 
     // await order.save();
     await Order.findByIdAndUpdate(order._id, updatePayload, { new: true });
@@ -473,10 +473,10 @@ exports.updateReturnStatus = async (req, res) => {
       status === "rejected"
         ? { status: "rejected", amount: 0, processedAt }
         : {
-            status: "processing",
-            amount: order.pricing?.totalPayable || 0,
-            requestedAt: processedAt,
-          };
+          status: "processing",
+          amount: order.pricing?.totalPayable || 0,
+          requestedAt: processedAt,
+        };
 
     await Order.findByIdAndUpdate(
       order._id,
@@ -605,7 +605,7 @@ exports.updateRefundStatus = async (req, res) => {
 
 exports.updateOrderDeliveryStatus = async (req, res) => {
   try {
-    const { orderId, status } = req.body;
+    const { orderId, status, trackingId, trackingPartner } = req.body;
     console.log("Update Order Delivery Status req.body:", req.body);
 
     const allowedStatuses = ["processing", "dispatched", "delivered"];
@@ -617,7 +617,7 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     }
 
     const order = await Order.findById(orderId).populate("userId");
-    
+
 
     if (!order) {
       return res.status(404).json({ error: "Order not found." });
@@ -655,12 +655,16 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
       });
     }
 
+
     const statusEntry = { status, updatedAt: new Date() };
     const updatePayload = {
       $set: { orderStatus: status },
       $push: { orderStatusHistory: statusEntry },
     };
-
+    if (status === "dispatched") {
+      updatePayload.$set.trackingId = trackingId || "";
+      updatePayload.$set.trackingPartner = trackingPartner || "";
+    }
     if (status === "delivered") {
       updatePayload.$set.deliveredDate = new Date();
     }
@@ -1093,9 +1097,9 @@ const getRevenueBreakdown = async (req, res) => {
     ]);
 
     // ---------------- EXTRACT TOTALS ----------------
-    const weekly  = analytics?.weekly?.[0]  || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
+    const weekly = analytics?.weekly?.[0] || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
     const monthly = analytics?.monthly?.[0] || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
-    const yearly  = analytics?.yearly?.[0]  || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
+    const yearly = analytics?.yearly?.[0] || { recipesTotal: 0, starterTotal: 0, extrasTotal: 0 };
 
     return res.status(200).json({
       message: "Revenue breakdown fetched successfully",
@@ -1103,17 +1107,17 @@ const getRevenueBreakdown = async (req, res) => {
         // Last 4 weeks
         recipesForLastFourWeeks: weekly.recipesTotal,
         starterForLastFourWeeks: weekly.starterTotal,
-        extrasForLastFourWeeks:  weekly.extrasTotal,
+        extrasForLastFourWeeks: weekly.extrasTotal,
 
         // Last 4 months
         recipesForLastFourMonths: monthly.recipesTotal,
         starterForLastFourMonths: monthly.starterTotal,
-        extrasForLastFourMonths:  monthly.extrasTotal,
+        extrasForLastFourMonths: monthly.extrasTotal,
 
         // Last 4 years
         recipesForLastFourYears: yearly.recipesTotal,
         starterForLastFourYears: yearly.starterTotal,
-        extrasForLastFourYears:  yearly.extrasTotal,
+        extrasForLastFourYears: yearly.extrasTotal,
       },
     });
   } catch (error) {
@@ -1177,10 +1181,10 @@ exports.getRevenueAnalytics1 = async (req, res) => {
           type === "weekly"
             ? new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000)
             : type === "monthly"
-            ? new Date(now.getFullYear(), start.getMonth() + 1, 1)
-            : type === "yearly"
-            ? new Date(start.getFullYear() + 1, 0, 1)
-            : new Date();
+              ? new Date(now.getFullYear(), start.getMonth() + 1, 1)
+              : type === "yearly"
+                ? new Date(start.getFullYear() + 1, 0, 1)
+                : new Date();
 
         const periodOrders = orders.filter(
           (o) => o.createdAt >= start && o.createdAt < end
@@ -1619,6 +1623,7 @@ exports.requestDispute = async (req, res) => {
       adminResolution: { status: "pending" },
     };
 
+
     const updatedOrder = await Order.findByIdAndUpdate(
       order._id,
       {
@@ -1627,6 +1632,15 @@ exports.requestDispute = async (req, res) => {
       },
       { new: true }
     );
+
+    await createUserNotification({
+      userId: order.userId,
+      title: "Dispute requested",
+      message: `Dispute requested for order ${order.orderID}.`,
+      type: "dispute_requested",
+      orderId: order._id,
+      metadata: { reason, note, evidence },
+    });
 
     res.json({ message: "Dispute requested successfully", order: updatedOrder });
   } catch (error) {

@@ -70,12 +70,21 @@ const OrderSchema = new mongoose.Schema(
       enum: ["processing", "paid", "dispatched", "delivered", "cancelled","disputed"],
       default: "processing",
     },
+    trackingId: {
+      type: String,
+      default: "",
+    },
+    trackingPartner: {
+      type: String,
+      default: "",
+    },
     orderStatusHistory: [
       new mongoose.Schema(
         {
           status: {
             type: String,
             // enum: ["processing", "paid", "dispatched", "delivered", "cancelled", "disputed"],
+            default: "paid",
             required: true,
           },
           updatedAt: {
@@ -85,6 +94,8 @@ const OrderSchema = new mongoose.Schema(
         },
         { _id: false }
       ),
+
+      
     ],
     cancelReason: {
       type: String,
