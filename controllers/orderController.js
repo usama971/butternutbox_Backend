@@ -237,12 +237,47 @@ exports.cancelOrder = async (req, res) => {
     console.log("Cancel Order req.body:", req.body);
     console.log("Cancel Order userId from token:", req.user);
     const user = await User.findById(req.user.userId);
+    // const user = await User.findById("69a69ede9b84ffc3b5acffd7");
     console.log("Cancel Order user from DB:", user);
     // 1️⃣ Validate request body
     const { error, value } = cancelOrderValidation.validate({ ...req.body });
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { orderId, cancelReason, cancelNote } = value;
+
+    const USER_CANCEL_REASONS = new Set([
+      "too_expensive",
+      "found_alternative",
+      "pet_no_longer_needs",
+      "delivery_issues",
+      "other",
+    ]);
+
+    const ADMIN_CANCEL_REASONS = new Set([
+      "customer_not_available",
+      "customer_refused_delivery",
+      "address_not_found",
+      "invalid_contact_details",
+      "delivery_failed_multiple_attempts",
+      "order_returned_by_delivery_partner",
+    ]);
+
+    // const isUserReason = USER_CANCEL_REASONS.has(cancelReason);
+    const isUserReason = req.user.roleName === "CLIENT";
+    // const isAdminReason = ADMIN_CANCEL_REASONS.has(cancelReason);
+    const isAdminReason = req.user.roleName === "ADMIN";
+
+    // Sanity guard (should never happen because Joi validates)
+    if (!isUserReason && !isAdminReason) {
+      return res.status(400).json({ error: "Invalid cancel reason." });
+    }
+
+    // Enforce who can cancel based on cancelReason
+    if (isAdminReason && req.user?.roleName !== "ADMIN") {
+      return res.status(403).json({
+        error: "Only admin can cancel an order with this reason.",
+      });
+    }
 
     // 2️⃣ Find order
     const order = await Order.findById(orderId);
@@ -296,40 +331,44 @@ exports.cancelOrder = async (req, res) => {
         orderId: order._id,
       }),
       createAdminNotifications({
-        title: "Order cancelled by user",
-        message: `User ${user.email} cancelled order ${order.orderID}.`,
-        type: "order_cancelled_by_user",
+        title: isAdminReason ? "Order cancelled by admin" : "Order cancelled by user",
+        message: isAdminReason
+          ? `Admin ${user.email} cancelled order ${order.orderID}.`
+          : `User ${user.email} cancelled order ${order.orderID}.`,
+        type: isAdminReason ? "order_cancelled_by_admin" : "order_cancelled_by_user",
         orderId: order._id,
         metadata: { userId: user._id, userEmail: user.email },
       }),
     ]);
 
-    // Send email to user
-    await sendEmail({
-      to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
-      // to: user.email,
-      subject: "Order Cancellation Confirmation",
-      html: getUserCancelTemplate(
-        // order.userId.name,
-        user.name,
-        order.orderID,
-        cancelReason,
-        cancelNote,
-      ),
-    });
+    if (isUserReason) {
+      // Send email to user
+      await sendEmail({
+        to: [user.email, process.env.ADMIN_EMAIL], // Send to both user and admin
+        // to: user.email,
+        subject: "Order Cancellation Confirmation",
+        html: getUserCancelTemplate(
+          // order.userId.name,
+          user.name,
+          order.orderID,
+          cancelReason,
+          cancelNote,
+        ),
+      });
 
-    // Send email to admin
-    await sendEmail({
-      to: process.env.ADMIN_EMAIL,
-      subject: "User Cancelled an Order",
-      html: getAdminCancelTemplate(
-        user.name,
-        user.email,
-        order.orderID,
-        cancelReason,
-        cancelNote,
-      ),
-    });
+      // Send email to admin
+      await sendEmail({
+        to: process.env.ADMIN_EMAIL,
+        subject: "User Cancelled an Order",
+        html: getAdminCancelTemplate(
+          user.name,
+          user.email,
+          order.orderID,
+          cancelReason,
+          cancelNote,
+        ),
+      });
+    }
 
     res.status(200).json({ message: "Order cancelled successfully" });
   } catch (err) {

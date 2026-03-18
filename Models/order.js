@@ -67,7 +67,7 @@ const OrderSchema = new mongoose.Schema(
     // totalAmount: { type: Number, required: true },
     orderStatus: {
       type: String,
-      enum: ["processing", "paid", "dispatched", "delivered", "cancelled","disputed"],
+      enum: ["processing", "paid", "dispatched", "delivered", "cancelled", "disputed"],
       default: "processing",
     },
     trackingId: {
@@ -95,7 +95,7 @@ const OrderSchema = new mongoose.Schema(
         { _id: false }
       ),
 
-      
+
     ],
     cancelReason: {
       type: String,
@@ -105,6 +105,14 @@ const OrderSchema = new mongoose.Schema(
         "pet_no_longer_needs",
         "delivery_issues",
         "other",
+
+        // Admin / Delivery partner reasons
+        "customer_not_available",
+        "customer_refused_delivery",
+        "address_not_found",
+        "invalid_contact_details",
+        "delivery_failed_multiple_attempts",
+        "order_returned_by_delivery_partner"
       ],
     },
     cancelNote: {

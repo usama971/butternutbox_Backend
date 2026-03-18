@@ -87,6 +87,14 @@ const cancelOrderValidation = Joi.object({
       "pet_no_longer_needs",
       "delivery_issues",
       "other",
+
+      // Admin / Delivery partner reasons
+      "customer_not_available",
+      "customer_refused_delivery",
+      "address_not_found",
+      "invalid_contact_details",
+      "delivery_failed_multiple_attempts",
+      "order_returned_by_delivery_partner"
     )
     .required(),
   cancelNote: Joi.when("cancelReason", {
