@@ -91,6 +91,10 @@ const OrderSchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
           },
+          updatedBy:{
+            type: String,
+            default: "",
+          },
         },
         { _id: false }
       ),

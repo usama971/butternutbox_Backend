@@ -236,6 +236,7 @@ exports.cancelOrder = async (req, res) => {
     // console.log("Cancel Order req.params:", req.params);
     console.log("Cancel Order req.body:", req.body);
     console.log("Cancel Order userId from token:", req.user);
+    console.log("Cancel Order roleName from token:", req.user.roleName);
     const user = await User.findById(req.user.userId);
     // const user = await User.findById("69a69ede9b84ffc3b5acffd7");
     console.log("Cancel Order user from DB:", user);
@@ -301,8 +302,8 @@ exports.cancelOrder = async (req, res) => {
 
     // 5️⃣ Update order with cancel reason & note + push to orderStatusHistory
     const cancelledAt = new Date();
-    const statusEntry = { status: "cancelled", updatedAt: cancelledAt };
-
+    const statusEntry = { status: "cancelled", updatedAt: cancelledAt, updatedBy:req.user.roleName };
+console.log("Cancel Order statusEntry:", statusEntry);
     await Order.findByIdAndUpdate(
       order._id,
       {

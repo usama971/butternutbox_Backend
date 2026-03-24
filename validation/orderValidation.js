@@ -51,6 +51,7 @@ const orderValidation = Joi.object({
         // .valid("processing", "paid", "dispatched", "delivered", "cancelled", "disputed")
         .required(),
       updatedAt: Joi.date().default(() => new Date()), // <-- only the function
+      updatedBy: Joi.string().allow("").optional(),
     })
   ).optional(),
 
