@@ -764,7 +764,7 @@ const getUserReturnRejectedTemplate = (
   userName,
   orderID,
   rejectionReason,
-  rejectionNote,
+  adminNote,
 ) => `
 <!DOCTYPE html>
 <html>
@@ -831,11 +831,11 @@ const getUserReturnRejectedTemplate = (
               }
 
                       ${
-                        rejectionNote
+                        adminNote
                           ? `
               <p style="margin-top:15px;"><strong>Additional Details:</strong></p>
               <p style="margin-top:5px; background:#f9fafb; padding:12px; border-radius:6px;">
-                ${rejectionNote}
+                ${adminNote}
               </p>
               `
                           : ""

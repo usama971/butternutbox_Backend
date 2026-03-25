@@ -302,8 +302,8 @@ exports.cancelOrder = async (req, res) => {
 
     // 5️⃣ Update order with cancel reason & note + push to orderStatusHistory
     const cancelledAt = new Date();
-    const statusEntry = { status: "cancelled", updatedAt: cancelledAt, updatedBy:req.user.roleName };
-console.log("Cancel Order statusEntry:", statusEntry);
+    const statusEntry = { status: "cancelled", updatedAt: cancelledAt, updatedBy: req.user.roleName };
+    console.log("Cancel Order statusEntry:", statusEntry);
     await Order.findByIdAndUpdate(
       order._id,
       {
@@ -381,7 +381,7 @@ exports.requestReturn = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
 
-    const { orderId, reason, note } = req.body;
+    const { orderId, reason, userNote } = req.body;
 
     const order = await Order.findById(orderId);
 
@@ -402,16 +402,16 @@ exports.requestReturn = async (req, res) => {
     }
 
 
-    const statusEntry = { status: "return_requested", updatedAt: new Date() };
+    const statusEntry = { status: "return_requested", updatedAt: new Date() , updatedBy: req.user.roleName };
     const updatePayload = {
       // $set: { orderStatus: "return_requested" },
-      $set: { return: { status: "requested", reason, note: note || null, requestedAt: new Date() } },
+      $set: { return: { status: "return_requested", reason, userNote: userNote || null, requestedAt: new Date() } },
       $push: { orderStatusHistory: statusEntry },
     };
     // order.return = {
     //   status: "requested",
     //   reason,
-    //   note: note || null,
+    //   userNote: userNote || null,
     //   requestedAt: new Date(),
     // };
 
@@ -435,7 +435,7 @@ exports.requestReturn = async (req, res) => {
         userId: user._id,
         userEmail: user.email,
         reason,
-        note: note || null,
+        userNote: userNote || null,
       },
     });
     await sendEmail({
@@ -447,7 +447,7 @@ exports.requestReturn = async (req, res) => {
         user.name,
         order.orderID,
         reason,
-        note,
+        userNote,
       ),
     });
     await sendEmail({
@@ -458,7 +458,7 @@ exports.requestReturn = async (req, res) => {
         user.email,
         order.orderID,
         reason,
-        note,
+        userNote,
       ),
     });
 
@@ -475,27 +475,27 @@ exports.requestReturn = async (req, res) => {
 
 exports.updateReturnStatus = async (req, res) => {
   try {
-    const { orderId, status, rejectionReason, rejectionNote } = req.body;
+    const { orderId, status, rejectionReason, adminNote } = req.body;
     console.log("Update Return Status req.body:", req.body);
 
     const order = await Order.findById(orderId).populate("userId");
 
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (!order.return || order.return.status !== "requested") {
+    if (!order.return || order.return.status !== "return_requested") {
       return res.status(400).json({
         error: "No pending return request found.",
       });
     }
 
-    if (!["approved", "rejected"].includes(status)) {
+    if (!["return_approved", "return_rejected"].includes(status)) {
       return res.status(400).json({
         error: "Invalid status. Must be approved or rejected.",
       });
     }
 
     const processedAt = new Date();
-    const statusEntry = { status: `return_${status}`, updatedAt: processedAt };
+    const statusEntry = { status: status, updatedAt: processedAt, updatedBy: req.user.roleName };
 
     const returnUpdate = {
       reason: order.return.reason,
@@ -504,9 +504,9 @@ exports.updateReturnStatus = async (req, res) => {
       status,
       processedAt,
     };
-    if (status === "rejected") {
+    if (status === "return_rejected") {
       returnUpdate.rejectionReason = rejectionReason || null;
-      returnUpdate.rejectionNote = rejectionNote || null;
+      returnUpdate.adminNote = adminNote || null;
     }
 
     const refundUpdate =
@@ -538,7 +538,7 @@ exports.updateReturnStatus = async (req, res) => {
       metadata: {
         status,
         rejectionReason: rejectionReason || null,
-        rejectionNote: rejectionNote || null,
+        adminNote: adminNote || null,
       },
     });
 
@@ -546,7 +546,7 @@ exports.updateReturnStatus = async (req, res) => {
     // 📩 Send Email to User
     // =========================
 
-    if (status === "approved") {
+    if (status === "return_approved") {
       await sendEmail({
         to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin
         subject: "Return Request Approved",
@@ -554,7 +554,7 @@ exports.updateReturnStatus = async (req, res) => {
       });
     }
 
-    if (status === "rejected") {
+    if (status === "return_rejected") {
       await sendEmail({
         to: [order.userId.email, process.env.ADMIN_EMAIL], // Send to both user and admin
         subject: "Return Request Update",
@@ -562,7 +562,7 @@ exports.updateReturnStatus = async (req, res) => {
           order.userId.name,
           order.orderID,
           rejectionReason,
-          rejectionNote,
+          adminNote,
         ),
       });
     }
@@ -696,7 +696,7 @@ exports.updateOrderDeliveryStatus = async (req, res) => {
     }
 
 
-    const statusEntry = { status, updatedAt: new Date() };
+    const statusEntry = { status, updatedAt: new Date(), updatedBy: req.user.roleName };
     const updatePayload = {
       $set: { orderStatus: status },
       $push: { orderStatusHistory: statusEntry },
@@ -1652,7 +1652,7 @@ exports.requestDispute = async (req, res) => {
     }
 
     const requestedAt = new Date();
-    const statusEntry = { status: "dispute_requested", updatedAt: requestedAt };
+    const statusEntry = { status: "dispute_requested", updatedAt: requestedAt, updatedBy: req.user.roleName };
 
     const disputeUpdate = {
       status: "requested",
@@ -1723,7 +1723,7 @@ exports.resolveDispute = async (req, res) => {
       processedAt: resolvedAt,
     };
 
-    const statusEntry = { status: `dispute_${status}`, updatedAt: resolvedAt };
+    const statusEntry = { status: `dispute_${status}`, updatedAt: resolvedAt , updatedBy: req.user.roleName };
 
     const updatedOrder = await Order.findByIdAndUpdate(
       order._id,

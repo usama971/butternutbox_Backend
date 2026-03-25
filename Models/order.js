@@ -149,7 +149,10 @@ const OrderSchema = new mongoose.Schema(
         ],
       },
 
-      note: {
+      // note: {
+      //   type: String,
+      // },
+      userNote: {
         type: String,
       },
       rejectionReason: {
@@ -167,7 +170,8 @@ const OrderSchema = new mongoose.Schema(
           "other",
         ],
       },
-      rejectionNote: String,
+      // rejectionNote: String,
+      adminNote: String,
       requestedAt: Date,
       processedAt: Date,
     },
