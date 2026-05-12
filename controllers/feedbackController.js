@@ -1,6 +1,7 @@
 const { skipMiddlewareFunction } = require('mongoose');
 const Feedback = require('../Models/feedback');
 const Order = require('../Models/order');
+const User = require('../Models/userModel');
 const {feedbackValidation, feedbackUpdateValidation} = require('../validation/feedbackValidation');
 
 // exports.createFeedback = async (req, res) => {
@@ -101,10 +102,48 @@ exports.updateFeedback = async (req, res) => {
 exports.getFeedbacks = async (req, res) => {
   try {
     let userId = req.user.userId;
+    // const feedbacks = await Feedback.find( )
     // const feedbacks = await Feedback.find({ userId }).populate('userId orderId');
     const feedbacks = await Feedback.find({ userId }).populate('userId' , select='-_id name email').populate('orderId', select='orderNumber totalAmount');
     res.json({ message: 'Feedbacks fetched', data: feedbacks });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getFeedbacksForAdmin = async (req, res) => {
+  try {
+
+    const adminId = req.user.userId;
+
+    // Step 1: Find all users of this admin
+    const users = await User.find({ adminId }).select('_id');
+
+    // Step 2: Extract user IDs
+    const userIds = users.map(user => user._id);
+
+    // Step 3: Get feedbacks of those users
+    const feedbacks = await Feedback.find({
+      userId: { $in: userIds }
+    })
+      .populate({
+        path: 'userId',
+        select: 'name email phone address'
+      })
+      .populate({
+        path: 'orderId',
+        select: ' orderID orderNumber totalAmount orderStatus  pricing.totalPayable'
+      })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Feedbacks fetched successfully',
+      data: feedbacks
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
   }
 };

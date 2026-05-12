@@ -41,6 +41,57 @@ router.post(
         break;
       }
 
+      // Subscription lifecycle events (pause/resume/cancel)
+      case "customer.subscription.created": {
+        const sub = event.data.object;
+        console.log("🔁 customer.subscription.created:", {
+          id: sub.id,
+          customer: sub.customer,
+          status: sub.status,
+        });
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        const sub = event.data.object;
+        console.log("🔁 customer.subscription.updated:", {
+          id: sub.id,
+          customer: sub.customer,
+          status: sub.status,
+        });
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = event.data.object;
+        console.log("🔁 customer.subscription.deleted:", {
+          id: sub.id,
+          customer: sub.customer,
+        });
+        break;
+      }
+
+      // Renewal billing events for your subscription cycles
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object;
+        console.log("📄 invoice.payment_succeeded:", {
+          id: invoice.id,
+          subscription: invoice.subscription,
+          billing_reason: invoice.billing_reason,
+        });
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+        console.log("📄 invoice.payment_failed:", {
+          id: invoice.id,
+          subscription: invoice.subscription,
+          billing_reason: invoice.billing_reason,
+        });
+        break;
+      }
+
       default:
         console.log("Unhandled event:", event.type);
     }

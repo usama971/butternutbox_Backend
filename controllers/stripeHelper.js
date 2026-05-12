@@ -47,8 +47,8 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
   }
 
   const { pupParent, orders, pricing } = checkout.payload;
-  console.log("✅ Fetched checkout payload:11111111111", checkout.payload);
-  console.log("✅ Fetched checkout payload:111  orders", orders);
+  // console.log("✅ Fetched checkout payload:11111111111", checkout.payload);
+  // console.log("✅ Fetched checkout payload:111  orders", orders);
   // return; // TEMPORARY STOP
   // const { pupParent, dogs, finalAmount } = checkout.payload;
   if (!pupParent || !orders?.length || !pricing) {

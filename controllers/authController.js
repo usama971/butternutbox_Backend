@@ -238,6 +238,12 @@ const loginUser = async (req, res) => {
         message: "Your account has been blocked. Please contact support.",
       });
     }
+    
+    // Debug: log plain input password and hashed password from DB
+    console.log("input password:", password);
+    console.log("user.password (hashed from DB):", user.password);
+
+    
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });

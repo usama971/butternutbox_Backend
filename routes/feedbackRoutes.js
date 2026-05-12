@@ -6,5 +6,6 @@ router.post('/', feedbackController.createFeedback);
 
 router.patch('/:id', feedbackController.updateFeedback);
 router.get('/', feedbackController.getFeedbacks);
+router.get('/admin', feedbackController.getFeedbacksForAdmin);
 
 module.exports = router;
