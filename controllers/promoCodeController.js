@@ -38,6 +38,7 @@ exports.createPromoCode = async (req, res) => {
 exports.validatePromoCode = async (req, res) => {
   try {
     const { code, orderTotal, email } = req.body;
+    console.log("✅ Validate Promo Code Request Body:", req.body);
 
     // ✅ Validate required fields
     if (!code || !orderTotal || !email) {
@@ -47,16 +48,9 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    // ✅ Find user by email
+    // User may not exist yet (e.g. first-time checkout before account creation)
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        valid: false,
-        message: "User not found",
-      });
-    }
-
-    const userId = user._id;
+    const userId = user?._id;
 
     // ✅ Find promo code
     const promo = await PromoCode.findOne({ code });
@@ -100,10 +94,10 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    // ✅ Check per-user usage limit
-    if (promo.limitPerUser && promo.limitPerUser > 0) {
+    // ✅ Check per-user usage limit (only when user already exists in DB)
+    if (userId && promo.limitPerUser && promo.limitPerUser > 0) {
       const userPromoUsageCount = await Order.countDocuments({
-        userId: userId,
+        userId,
         "pricing.discount.code": code,
       });
 

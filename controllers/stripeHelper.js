@@ -11,6 +11,7 @@ const Subscription = require("../Models/subscription");
 const CheckoutSession = require("../Models/CheckoutSession");
 const PromoCode = require("../Models/promoCode");
 const Recipe = require("../Models/recipe");
+const Lead = require("../Models/lead");
 const { createAdminNotifications } = require("../services/notificationService");
 
 async function decrementRecipeStock(subOrders) {
@@ -70,7 +71,18 @@ async function processCheckoutSession(sessionId, stripeCustomerId, stripeSubscri
       agreeTerms: pupParent.agreeTerms,
       receiveDiscounts: pupParent.receiveDiscounts,
     });
+
+
+    const lead = await Lead.findOne({ email: pupParent.email });
+    if (lead) {
+      lead.isConverted = true;
+      await lead.save();
+      console.log("✅ Lead converted:", lead);
+    }
+
   }
+
+  
 
   // 3️⃣ Store dogs in DB and get their IDs
 const petIds = []; // To store pet IDs for later use in order

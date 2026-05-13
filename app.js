@@ -20,6 +20,9 @@ const checkoutRoutes = require("./routes/checkout");
 const authRoutes = require("./routes/authRoutes");
 const authUpdatePasswordRoutes = require("./routes/authUpdatePasswordRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const leadRoutes = require("./routes/leadRoutes");
+
+
 
 
 const authenticateJWT = require("./controllers/middlewares/authenticateJWT");
@@ -52,6 +55,7 @@ app.use("/api/checkout", checkoutRoutes);
 app.use("/api/promoCodes/validate", promoCodeValidateRoutes);
 
 app.use("/api/recipes", recipeRoutesForUser);
+app.use("/api/leads", leadRoutes);
 
 app.use("/api", authenticateJWT);
 app.use("/api/auth", authUpdatePasswordRoutes);
