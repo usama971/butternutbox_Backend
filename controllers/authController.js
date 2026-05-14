@@ -59,6 +59,7 @@ const forgotPassword = (Model) => async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "No user found with this email." });
     }
+    console.log(user.email);
 
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
@@ -68,8 +69,9 @@ const forgotPassword = (Model) => async (req, res) => {
     await user.save();
 
     await sendEmail({
-      // to: user.email || process.env.ADMIN_EMAIL, // Fallback to admin email if user email is missing
-      to: [user.email, process.env.ADMIN_EMAIL], // Fallback to admin email if user email is missing
+      to: user.email, // Fallback to admin email if user email is missing
+      // to: [user.email, process.env.ADMIN_EMAIL], // Fallback to admin email if user email is missing
+  
       subject: "Your Verification Code",
       html: getUserOtpTemplate(user.name, otp),
     });

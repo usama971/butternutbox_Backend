@@ -1,7 +1,9 @@
 // services/emailService.js
 
 const nodemailer = require('nodemailer');
+const dns = require("dns");
 
+dns.setDefaultResultOrder("ipv4first");
 // 1️⃣ Create transporter once
 // const transporter = nodemailer.createTransport({
 //   service: "gmail", // or use host/port if custom SMTP
