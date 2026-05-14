@@ -66,23 +66,105 @@ exports.UpdateUser = async (req, res) => {
   }
 };
 
+// exports.updateUserImage = async (req, res) => {
+//   try {
+//     const userId = req.user.userId;
+//     const user = await User.findById(userId);
+//     if (!user) return res.status(404).json({ error: "User not found" });
+
+//     // ✅ Case 1: If image URL is coming in body
+//     if (req.body.image) {
+//       user.image.url = req.body.image;
+
+//       await user.save();
+
+//       const userResponse = user.toObject();
+//       delete userResponse.password;
+
+//       return res.status(200).json({
+//         message: "User image URL updated successfully",
+//         data: userResponse,
+//       });
+//     }
+
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No image file uploaded" });
+//     }
+
+   
+//     // Delete old image from Cloudinary
+//     if (user.image?.publicId) {
+//       await cloudinary.uploader.destroy(user.image.publicId);
+//     }
+
+//     // Upload new image to butterNutBox/bnbUser
+//     const result = await uploadToCloudinaryUser(req.file.buffer);
+
+//     user.image = {
+//       url: result.secure_url,
+//       publicId: result.public_id,
+//     };
+
+//     await user.save();
+
+//     const userResponse = user.toObject();
+//     delete userResponse.password;
+
+//     res.status(200).json({
+//       message: "User image updated successfully",
+//       data: userResponse,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// for admin dashboard
+
+
+
 exports.updateUserImage = async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    if (!req.file) {
-      return res.status(400).json({ error: "No image file uploaded" });
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    // ✅ Case 1: If image URL is coming in body
+    if (req.body.image) {
+      user.image.url = req.body.image;
+
+      await user.save();
+
+      const userResponse = user.toObject();
+      delete userResponse.password;
+      let imageUrl = userResponse.image.url;
+
+      return res.status(200).json({
+        message: "User image URL updated successfully",
+        data: {
+          image: {
+            url: user.image.url,
+          },
+        }
+      });
+    }
+
+    // ✅ Case 2: If file is uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: "No image file uploaded or image URL provided",
+      });
+    }
 
     // Delete old image from Cloudinary
     if (user.image?.publicId) {
       await cloudinary.uploader.destroy(user.image.publicId);
     }
 
-    // Upload new image to butterNutBox/bnbUser
+    // Upload new image
     const result = await uploadToCloudinaryUser(req.file.buffer);
 
     user.image = {
@@ -97,14 +179,17 @@ exports.updateUserImage = async (req, res) => {
 
     res.status(200).json({
       message: "User image updated successfully",
-      data: userResponse,
+      data: {
+        image: {
+          url: user.image.url,
+        },
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// for admin dashboard
 exports.getUsers = async (req, res) => {
   try {
     let adminId = req.user.userId;
@@ -127,7 +212,7 @@ exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
 
     // 3. Get the user and make sure it belongs to the admin
     const user = await User.findOne({ _id: userId })
-      .select("-_id name email phone address city state houseNumber postCode")
+      .select("-_id name email phone image.url address city state houseNumber postCode")
       .lean();
 
     if (!user) {
