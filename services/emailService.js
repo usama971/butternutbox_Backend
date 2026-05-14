@@ -1,12 +1,17 @@
 // services/emailService.js
 
+const dns = require("dns");
 const nodemailer = require("nodemailer");
 
-// Use hostname (not a hardcoded IP) — IPs change and cloud networks often block or time out to random Google IPs.
-// Override via env on Render if you use SendGrid, Mailgun, etc.
+// Prefer IPv4 — Render (and many clouds) often have no working IPv6 route to Google SMTP.
+if (typeof dns.setDefaultResultOrder === "function") {
+  dns.setDefaultResultOrder("ipv4first");
+}
+
+// Use hostname (not a hardcoded IP). Override via env on Render if you use SendGrid, Mailgun, etc.
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
 const smtpPort = Number(process.env.SMTP_PORT) || 587;
-// 465 → SSL; 587 → STARTTLS
+// 465 → SSL; 587 → STARTTLS (587 + IPv4 is usually most reliable on PaaS like Render)
 const useSecure = smtpPort === 465;
 
 const transporter = nodemailer.createTransport({
@@ -18,7 +23,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  // Helps on some hosts where IPv6 path is broken (optional)
+  // Force IPv4 for SMTP connect (fixes ENETUNREACH to Gmail IPv6 from Render)
+  lookup(hostname, options, callback) {
+    dns.lookup(hostname, { family: 4, all: false }, callback);
+  },
   family: 4,
   connectionTimeout: 20000,
   greetingTimeout: 20000,
