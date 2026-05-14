@@ -11,16 +11,18 @@ const nodemailer = require('nodemailer');
 //   },
 // });
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  // host: "smtp.gmail.com",
+  host: "64.233.184.108", // Gmail SMTP IPv4 (hardcoded)
+
   port: 465,
   secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
+  tls: {
+    servername: "smtp.gmail.com",
+  },
 });
 
 // 2️⃣ Send Email Function
