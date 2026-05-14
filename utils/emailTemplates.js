@@ -353,7 +353,7 @@ const getAdminCancelTemplate = (userName, userEmail, orderID, reason, note) => `
 </html>
 `;
 
-const getUserReturnRequestTemplate = (userName, orderID, reason, note) => `
+const getUserReturnRequestTemplate = (userName, orderID, reason, userNote) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -413,14 +413,14 @@ const getUserReturnRequestTemplate = (userName, orderID, reason, note) => `
                 </tr>
 
                 ${
-                  note
+                  userNote
                     ? `
                 <tr>
                   <td style="padding-top:15px; color:#6b7280;">Additional Note</td>
                 </tr>
                 <tr>
                   <td style="padding:5px 0; color:#111827;">
-                    ${note}
+                    ${userNote}
                   </td>
                 </tr>
                 `
@@ -466,7 +466,7 @@ const getAdminReturnRequestTemplate = (
   userEmail,
   orderID,
   reason,
-  note,
+  userNote,
 ) => `
 <!DOCTYPE html>
 <html>
@@ -508,10 +508,10 @@ const getAdminReturnRequestTemplate = (
               </p>
 
               ${
-                note
+                userNote
                   ? `
               <p style="margin-top:15px;"><strong>Additional Note:</strong></p>
-              <p>${note}</p>
+              <p>${userNote}</p>
               `
                   : ""
               }

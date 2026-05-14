@@ -1,8 +1,6 @@
 const Recipe = require("../Models/recipe");
 const {
-  recipeValidation,
   updateRecipeValidation,
-  updateRecipeStockValidation,
   recipesByAllergiesValidation,
 } = require("../validation/recipeValidation");
 const {
@@ -146,34 +144,7 @@ exports.updateRecipeStatus = async (req, res) => {
   }
 };
 
-exports.updateRecipeStock = async (req, res) => {
-  try {
-    console.log("Update Recipe Stock req.body:", req.body);
-    const recipeId = req.params.id;
-    const adminId = req.user.userId;
-    const { error, value } = updateRecipeStockValidation.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
 
-    const recipe = await Recipe.findOne({ _id: recipeId, adminId });
-    if (!recipe) {
-      return res.status(404).json({ message: "Recipe not found or access denied" });
-    }
-
-    recipe.stock = value.stock;
-    if (value.lowStockThreshold !== undefined) recipe.lowStockThreshold = value.lowStockThreshold;
-    if (value.trackStock !== undefined) recipe.trackStock = value.trackStock;
-    await recipe.save();
-
-    res.status(200).json({
-      message: "Recipe stock updated successfully",
-      data: { _id: recipe._id, stock: recipe.stock, lowStockThreshold: recipe.lowStockThreshold, trackStock: recipe.trackStock },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 exports.getRecipes = async (req, res) => {
   try {
