@@ -30,10 +30,11 @@ router.patch(
    upload.single("image"),
   recipeController.updateRecipe
 );
+
 router.patch(
   "/updateStatus/:id",
   recipeController.updateRecipeStatus
-);
+); 
 // router.patch("/:id/stock", recipeController.updateRecipeStock);
 router.get('/', recipeController.getRecipes);
 
