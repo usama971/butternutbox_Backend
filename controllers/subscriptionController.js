@@ -17,6 +17,7 @@ exports.createSubscription = async (req, res) => {
 
 exports.getSubscriptions = async (req, res) => {
   try {
+    
     const subscriptions = await Subscription.find().populate('userId orderId');
     res.json({ message: 'Subscriptions fetched', data: subscriptions });
   } catch (err) {
