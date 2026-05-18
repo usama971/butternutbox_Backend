@@ -9,6 +9,7 @@ const {
 // ---------------- Create ----------------
 exports.createPromoCode = async (req, res) => {
   try {
+    console.log("Create Promo Code Request Body:", req.body);
     let adminId = req.user.userId;
     req.body.adminId = adminId;
     const { error } = createPromoCodeValidation.validate(req.body);
@@ -30,6 +31,7 @@ exports.createPromoCode = async (req, res) => {
       .status(201)
       .json({ message: "Promo code created successfully", data: promo });
   } catch (err) {
+    console.error("Promo code creation error:", err);
     res.status(500).json({ error: err.message });
   }
 };

@@ -11,6 +11,7 @@ const sendEmail = async ({ to, subject, html }) => {
   try {
     const response = await tranEmailApi.sendTransacEmail({
       sender: {
+        // email: "usamasaeed3k@gmail.com", // MUST be verified in Brevo
         email: "usamasaeed3k@gmail.com", // MUST be verified in Brevo
         name: "ButternutBox",
       },

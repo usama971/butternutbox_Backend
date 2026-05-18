@@ -227,7 +227,7 @@ const updatePassword = (Model) => async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("login user request",email, password);
+    // console.log("login user request",email, password);
     const user = await UserModel.findOne({ email }).populate("roleId");
     console.log(user);
     if (!user) {
@@ -241,9 +241,9 @@ const loginUser = async (req, res) => {
       });
     }
     
-    // Debug: log plain input password and hashed password from DB
-    console.log("input password:", password);
-    console.log("user.password (hashed from DB):", user.password);
+    // // Debug: log plain input password and hashed password from DB
+    // console.log("input password:", password);
+    // console.log("user.password (hashed from DB):", user.password);
 
     
     const isMatch = await bcrypt.compare(password, user.password);
