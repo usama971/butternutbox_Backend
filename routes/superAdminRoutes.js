@@ -6,6 +6,8 @@ const authorizePermissions  = require('../controllers/middlewares/authorizePermi
 // add admin
 router.post('/add', authorizePermissions(['MANAGE_USERS']), superAdminController.createSuperAdmin);
 router.post('/add/employee', authorizePermissions(['MANAGE_EMPLOYEES']), superAdminController.createEmployee);
+router.patch('/update/employee/:id', authorizePermissions(['MANAGE_EMPLOYEES']), superAdminController.updateEmployee);
+
 router.get('/',authorizePermissions(['MANAGE_USERS']),  superAdminController.getSuperAdmins);
 router.get('/employees',authorizePermissions(['MANAGE_EMPLOYEES']),  superAdminController.getEmployees);
 
