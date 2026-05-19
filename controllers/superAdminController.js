@@ -45,6 +45,7 @@ exports.createSuperAdmin = async (req, res) => {
   }
 };
 exports.createEmployee = async (req, res) => {
+  console.log("Create Employee req.body:", req.body);
   try {
     // 1️⃣ Only ADMIN can create employee
     if (req.user.roleName !== "ADMIN") {

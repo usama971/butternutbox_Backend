@@ -291,6 +291,8 @@ exports.cancelOrder = async (req, res) => {
       });
     }
 
+    
+
     // 4️⃣ Cancel subscription if exists
     const subscription = await Subscription.findOne({ orderId });
     if (subscription?.stripeSubscriptionId) {
