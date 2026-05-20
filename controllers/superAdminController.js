@@ -259,19 +259,77 @@ console.log("Get Employees req.user:", req.user);
 
       console.log("Get Employees getEmployees:", getEmployees);
 
-      let isActive = getEmployees.map((employee) => employee.isActive==true);
+      let isActive = getEmployees.filter((employee) => employee.isActive==true);
 
-      let inActive = getEmployees.map((employee) => employee.isActive==false);
+      let inActive = getEmployees.filter((employee) => employee.isActive==false);
       console.log("Get Employees isActive:", isActive.length);
+      console.log("Get Employees inActive:", inActive.length);
+
+      
     // 3️⃣ Response
     return res.status(200).json({
       message: "Employees fetched successfully",
       totalEmployees: getEmployees.length,
-      data: getEmployees
+      data: getEmployees,
+      totalActiveEmployees: isActive.length,
+      totalInActiveEmployees: inActive.length
     });
 
   } catch (err) {
     console.error("Get Employees Error:", err);
+
+    return res.status(500).json({
+      error: "Internal server error"
+    });
+  }
+};
+
+
+exports.updateEmployeeStatus = async (req, res) => {
+  try {
+
+    // 1️⃣ Only ADMIN
+    if (req.user.roleName !== "ADMIN") {
+      return res.status(403).json({
+        message: "Only admin can update status"
+      });
+    }
+
+    const employeeId = req.params.id;
+
+    // 2️⃣ Find employee under admin
+    const employee = await SuperAdmin.findOne({
+      _id: employeeId,
+      adminId: req.user.userId
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        message: "Employee not found"
+      });
+    }
+
+    // 3️⃣ Toggle or set status
+    employee.isActive = req.body.isActive;
+
+    let updatedEmployee = await employee.save();
+
+    let employeeData = {
+      _id: updatedEmployee._id,
+      name: updatedEmployee.name,
+      email: updatedEmployee.email,
+      phone: updatedEmployee.phone,
+      isActive: updatedEmployee.isActive
+    }
+
+    // 4️⃣ Response
+    return res.status(200).json({
+      message: "Employee status updated successfully",
+      data: employeeData
+    });
+
+  } catch (err) {
+    console.error("Status Update Error:", err);
 
     return res.status(500).json({
       error: "Internal server error"
