@@ -237,7 +237,21 @@ exports.cancelOrder = async (req, res) => {
     console.log("Cancel Order req.body:", req.body);
     console.log("Cancel Order userId from token:", req.user);
     console.log("Cancel Order roleName from token:", req.user.roleName);
-    const user = await User.findById(req.user.userId);
+
+    // now we need data of customer from order
+
+
+    let user = null;
+    if (req.user.roleName === "ADMIN") {
+      const orderCustomer = await Order.findById(req.body.orderId);
+      if (!orderCustomer) return res.status(404).json({ error: "Order not found" });
+      const customer = await User.findById(orderCustomer.userId);
+      if (!customer) return res.status(404).json({ error: "Customer not found" });
+      console.log("Cancel Order customer from DB:", customer);
+      user = customer;
+    } else {
+      user = await User.findById(req.user.userId);
+    }
     // const user = await User.findById("69a69ede9b84ffc3b5acffd7");
     console.log("Cancel Order user from DB:", user);
     // 1️⃣ Validate request body
@@ -402,7 +416,7 @@ exports.requestReturn = async (req, res) => {
     }
 
 
-    const statusEntry = { status: "return_requested", updatedAt: new Date() , updatedBy: req.user.roleName };
+    const statusEntry = { status: "return_requested", updatedAt: new Date(), updatedBy: req.user.roleName };
     const updatePayload = {
       // $set: { orderStatus: "return_requested" },
       $set: { return: { status: "return_requested", reason, userNote: userNote || null, requestedAt: new Date() } },
@@ -1723,7 +1737,7 @@ exports.resolveDispute = async (req, res) => {
       processedAt: resolvedAt,
     };
 
-    const statusEntry = { status: `dispute_${status}`, updatedAt: resolvedAt , updatedBy: req.user.roleName };
+    const statusEntry = { status: `dispute_${status}`, updatedAt: resolvedAt, updatedBy: req.user.roleName };
 
     const updatedOrder = await Order.findByIdAndUpdate(
       order._id,
