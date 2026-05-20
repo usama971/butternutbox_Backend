@@ -116,7 +116,8 @@ const OrderSchema = new mongoose.Schema(
         "address_not_found",
         "invalid_contact_details",
         "delivery_failed_multiple_attempts",
-        "order_returned_by_delivery_partner"
+        "order_returned_by_delivery_partner",
+        "customer_accidentally_selected_order"
       ],
     },
     cancelNote: {

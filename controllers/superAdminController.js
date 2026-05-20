@@ -176,6 +176,7 @@ exports.updateEmployee = async (req, res) => {
     return res.status(200).json({
       message: "Employee updated successfully",
       data: {
+        _id: updatedEmployee._id,
         name: updatedEmployee.name,
         email: updatedEmployee.email,
         phone: updatedEmployee.phone,
@@ -253,7 +254,7 @@ console.log("Get Employees req.user:", req.user);
     const getEmployees = await SuperAdmin.find({
       adminId: req.user.userId
     })
-      .select("_id name email phone roleId createdAt")
+      .select("_id name email phone roleId isActive")
       .populate("roleId", "-_id, roleName");
 
       console.log("Get Employees getEmployees:", getEmployees);

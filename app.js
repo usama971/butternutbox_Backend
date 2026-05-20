@@ -76,6 +76,6 @@ app.use("/api/notifications", notificationRoutes);
 // app.listen(7001, () => console.log("Server running on http://localhost:7001"));
 const PORT = process.env.PORT || 7002;
 
-app.listen(PORT, () => {
+app.listen(PORT,"0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
