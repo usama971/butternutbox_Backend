@@ -4,48 +4,124 @@ const cloudinary = require("cloudinary").v2;
 const Recipe = require("../Models/recipe");
 
 // Middleware to validate image & recipe body
+// const validateRecipeRequest = async (req, res, next) => {
+//   try {
+//     // 1️⃣ Check if image is present
+//     if (!req.file) {
+//       return res.status(400).json({ error: "Recipe image is required" });
+//     }
+
+//     req.body.adminId = req.user.userId;
+//     console.log("admin id in validation:", req.body);
+//     console.log("Parsed ingredients before:", req.body);
+
+//     req.body.ingredients= JSON.parse(req.body.ingredients);
+//     console.log("Parsed ingredients:", req.body);
+//     // 2️⃣ Validate recipe body
+//     const { error } = recipeValidation.validate(req.body);
+//     if (error) {
+//       console.log("Validation error:", error.details[0].message);
+//       // Delete uploaded image since validation failed
+//       if (req.file && req.file.filename) {
+//         await cloudinary.uploader.destroy(req.file.filename);
+//       }
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
+
+//     const recipeExists = await Recipe.findOne({
+//       adminId: req.body.adminId,
+//       name: req.body.name,
+//     });
+//     console.log("Recipe exists check:", recipeExists);
+//     if (recipeExists) {
+//       // await cloudinary.uploader.destroy(req.file.filename);
+
+//       return res.status(400).json({ error: "Recipe already exists" });
+//     }
+
+//     next(); // continue to controller
+//   } catch (err) {
+//     // Delete uploaded image on unexpected error
+//     if (req.file && req.file.filename) {
+//       await cloudinary.uploader.destroy(req.file.filename);
+//     }
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
 const validateRecipeRequest = async (req, res, next) => {
   try {
-    // 1️⃣ Check if image is present
+    // 1️⃣ Check image
     if (!req.file) {
       return res.status(400).json({ error: "Recipe image is required" });
     }
 
-    req.body.adminId = req.user.userId;
-    console.log("admin id in validation:", req.body);
-    console.log("Parsed ingredients before:", req.body);
+    // 2️⃣ Set adminId safely
+    req.body.adminId = req.user.userId.toString();
 
-    req.body.ingredients= JSON.parse(req.body.ingredients);
-    console.log("Parsed ingredients:", req.body);
-    // 2️⃣ Validate recipe body
+    // 🔥 SAFE JSON PARSER (IMPORTANT FIX)
+    const safeParse = (value) => {
+      if (!value) return value;
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch (err) {
+          return value; // fallback to avoid crash
+        }
+      }
+      return value;
+    };
+
+    // 3️⃣ Parse ONLY if needed
+    req.body.ingredients = safeParse(req.body.ingredients);
+    req.body.keyBenefits = safeParse(req.body.keyBenefits);
+    req.body.nutritionalInfo = safeParse(req.body.nutritionalInfo);
+
+    console.log("Parsed body:", req.body);
+
+    // 4️⃣ Validate
     const { error } = recipeValidation.validate(req.body);
+
     if (error) {
       console.log("Validation error:", error.details[0].message);
-      // Delete uploaded image since validation failed
-      if (req.file && req.file.filename) {
+
+      // delete uploaded image if validation fails
+      if (req.file?.filename) {
         await cloudinary.uploader.destroy(req.file.filename);
       }
-      return res.status(400).json({ error: error.details[0].message });
+
+      return res.status(400).json({
+        error: error.details[0].message,
+      });
     }
 
+    // 5️⃣ Check duplicate recipe
     const recipeExists = await Recipe.findOne({
       adminId: req.body.adminId,
       name: req.body.name,
     });
-    console.log("Recipe exists check:", recipeExists);
-    if (recipeExists) {
-      // await cloudinary.uploader.destroy(req.file.filename);
 
-      return res.status(400).json({ error: "Recipe already exists" });
+    if (recipeExists) {
+      if (req.file?.filename) {
+        await cloudinary.uploader.destroy(req.file.filename);
+      }
+
+      return res.status(400).json({
+        error: "Recipe already exists",
+      });
     }
 
-    next(); // continue to controller
+    next();
   } catch (err) {
-    // Delete uploaded image on unexpected error
-    if (req.file && req.file.filename) {
+    console.error("Middleware error:", err);
+
+    if (req.file?.filename) {
       await cloudinary.uploader.destroy(req.file.filename);
     }
-    res.status(500).json({ error: err.message });
+
+    return res.status(500).json({
+      error: err.message,
+    });
   }
 };
 

@@ -206,7 +206,7 @@ exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
     // 1. Get adminId from token
     // const adminId = req.user.userId;
 
-    console.log("Fetching users for admin:", req.user);
+    // console.log("Fetching users for admin:", req.user);
     // 2. Get userId from params
     const userId = req.user.userId;
 
@@ -221,11 +221,18 @@ exports.getUsersWithTotalPetsAndOrders = async (req, res) => {
         .json({ error: "User not found or does not belong to this admin" });
     }
 
+    
+    // console.log("User123:", user);
+
     // 4. Get pets of this user
     const pets = await Pet.find({ userId }).lean();
 
     // 5. Get orders of this user
     const orders = await Order.find({ userId }).lean();
+
+
+    // console.log("Pets:", pets);
+    // console.log("Orders:", orders);
 
     // 6. Send combined response with totals
     res.json({

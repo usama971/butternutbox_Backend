@@ -21,6 +21,7 @@ const authRoutes = require("./routes/authRoutes");
 const authUpdatePasswordRoutes = require("./routes/authUpdatePasswordRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const leadRoutes = require("./routes/leadRoutes");
+const ingredientRoutes = require("./routes/ingredientRoutes");
 
 
 
@@ -72,6 +73,7 @@ app.use("/api/feedbacks", feedbackRoutes);
 app.use("/api/shippings", shippingRoutes);
 app.use("/api/promoCodes", promoCodeRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 
 // app.listen(7001, () => console.log("Server running on http://localhost:7001"));
 const PORT = process.env.PORT || 7002;

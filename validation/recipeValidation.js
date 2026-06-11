@@ -1,38 +1,98 @@
 const Joi = require("joi");
 
+
 const recipeValidation = Joi.object({
   adminId: Joi.string().required(),
+
   name: Joi.string().required(),
-  description: Joi.string().allow(""),
-  ingredients: Joi.array().items(Joi.string()).default([]),
-  nutritionalInfo: Joi.string().allow(""),
-  price: Joi.number().required(),
-  category: Joi.string().valid("extras", "mainCourse").required(),
-  status: Joi.string().valid('active', 'inactive').default('active'),
+
+  description: Joi.string().allow("", null),
+
+  ingredients: Joi.array()
+    .items(
+      Joi.object({
+        ingredientId: Joi.string().required(),
+        percentage: Joi.number().min(0).optional()
+      })
+    )
+    .default([]),
+
+  keyBenefits: Joi.array()
+    .items(Joi.string())
+    .default([]),
+
+  nutritionalInfo: Joi.object({
+    analyticalConstituents: Joi.object({
+      crudeProtein: Joi.string().allow("", null),
+      crudeFat: Joi.string().allow("", null),
+      crudeFibres: Joi.string().allow("", null),
+      crudeAsh: Joi.string().allow("", null),
+      moisture: Joi.string().allow("", null)
+    }).default({}),
+
+    additivesPerKg: Joi.string().allow("", null)
+  }).default({}),
+
+  price: Joi.number().min(0).max(1000).optional(),
+
+  category: Joi.string()
+    .valid("extras", "mainCourse")
+    .required(),
+
+  status: Joi.string()
+    .valid("active", "inactive")
+    .default("active"),
+
   stock: Joi.number().min(0).required(),
-  lowStockThreshold: Joi.number().min(0).optional(),
-  trackStock: Joi.boolean().optional(),
-  // image: Joi.object({
-  //   url: Joi.string().uri().optional(),
-  //   publicId: Joi.string().optional(),
-  // }).optional(),
+
+  lowStockThreshold: Joi.number()
+    .min(0)
+    .optional(),
+
+  trackStock: Joi.boolean().optional()
 });
 
 const updateRecipeValidation = Joi.object({
-  name: Joi.string(),
-  description: Joi.string().allow(''),
-  ingredients: Joi.array().items(Joi.string()),
-  nutritionalInfo: Joi.string().allow(''),
-  price: Joi.number(),
-  category: Joi.string().valid('extras', 'mainCourse'),
-  stock: Joi.number().min(0).required(),
+  name: Joi.string().optional(),
+  description: Joi.string().allow('', null),
+
+  ingredients: Joi.array().items(
+    Joi.object({
+      ingredientId: Joi.string().required(),
+      percentage: Joi.number().min(0).optional()
+    })
+  ).optional(),
+
+  keyBenefits: Joi.array().items(Joi.string()).optional(),
+
+  nutritionalInfo: Joi.object({
+    analyticalConstituents: Joi.object({
+      crudeProtein: Joi.string().allow('', null),
+      crudeFat: Joi.string().allow('', null),
+      crudeFibres: Joi.string().allow('', null),
+      crudeAsh: Joi.string().allow('', null),
+      moisture: Joi.string().allow('', null)
+    }).optional(),
+
+    additivesPerKg: Joi.string().allow('', null)
+  }).optional(),
+
+  price: Joi.number().min(0).max(1000).optional(),
+
+  category: Joi.string().valid('extras', 'mainCourse').optional(),
+
+  stock: Joi.number().min(0).optional(),
+
   lowStockThreshold: Joi.number().min(0).optional(),
+
   trackStock: Joi.boolean().optional(),
+
   image: Joi.object({
     url: Joi.string().uri(),
     publicId: Joi.string()
   }).optional()
-}).options({ presence: "optional" }); // all fields optional for partial update
+}).options({ presence: "optional" });
+
 
 const petAllergiesItemSchema = Joi.object({
   allergies: Joi.array().items(Joi.string()).default([]),

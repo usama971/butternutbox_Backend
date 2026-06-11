@@ -3,6 +3,6 @@ const router = express.Router();
 const recipeController = require('../controllers/recipeController');
 
 router.post('/by-allergies', recipeController.getRecipesByPetAllergies);
-router.get('/', recipeController.getRecipes);
+// router.get('/', recipeController.getRecipes);
 
 module.exports = router;

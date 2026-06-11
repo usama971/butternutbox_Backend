@@ -21,6 +21,11 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (user.isActive === false) {
+      return res.status(401).json({ message: "Your account has been blocked. Please contact Admin." });
+    }
+   
+
     const token = jwt.sign(
       {
         userId: user._id,

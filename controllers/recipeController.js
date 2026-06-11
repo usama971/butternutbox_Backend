@@ -1,5 +1,6 @@
 const Recipe = require("../Models/recipe");
 const {
+  recipeValidation,
   updateRecipeValidation,
   recipesByAllergiesValidation,
 } = require("../validation/recipeValidation");
@@ -28,6 +29,23 @@ exports.createRecipe = async (req, res) => {
         publicId: result.public_id,
       };
     }
+    // let recipeValidation1 = {
+    //   adminId: req.user.userId,
+    //   name: req.body.name,
+    //   description: req.body.description,
+    //   ingredients: req.body.ingredients,
+    //   nutritionalInfo: req.body.nutritionalInfo,
+    //   price: req.body.price,
+    //   category: req.body.category,
+    //   status: req.body.status,
+    //   stock: req.body.stock,
+    //   lowStockThreshold: req.body.lowStockThreshold
+      
+    // };
+    // const { error } = recipeValidation.validate(recipeValidation1);
+    // if (error) {
+    //   return res.status(400).json({ error: error.details[0].message });
+    // }
 
     const recipe = new Recipe({
       ...req.body,
@@ -50,16 +68,90 @@ exports.createRecipe = async (req, res) => {
   }
 };
 
+// exports.updateRecipe = async (req, res) => {
+//   try {
+//     const recipeId = req.params.id;
+//     console.log("Update Recipe object:", req.body);
+
+//     req.body.ingredients= JSON.parse(req.body.ingredients);
+
+//     const { error } = updateRecipeValidation.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
+
+//     const recipe = await Recipe.findById(recipeId);
+//     if (!recipe) {
+//       return res.status(404).json({ message: "Recipe not found" });
+//     }
+
+//     if (recipe.adminId.toString() !== req.user.userId) {
+//       return res.status(403).json({ message: "Forbidden" });
+//     }
+
+//     if (req.file) {
+//       // delete old image
+//       if (recipe.image?.publicId) {
+//         await cloudinary.uploader.destroy(recipe.image.publicId);
+//       }
+
+//       const result = await uploadToCloudinary(req.file.buffer);
+
+//       console.log("Cloudinary upload result:", result);
+//       recipe.image = {
+//         url: result.secure_url,
+//         publicId: result.public_id,
+//       };
+//     }
+
+//     Object.keys(req.body).forEach((key) => {
+//       recipe[key] = req.body[key];
+//     });
+
+//     await recipe.save();
+
+//     res.status(200).json({
+//       message: "Recipe updated successfully",
+//       data: recipe,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+// new version according to the new recipe schema
+
 exports.updateRecipe = async (req, res) => {
   try {
     const recipeId = req.params.id;
-    console.log("Update Recipe object:", req.body);
 
-    req.body.ingredients= JSON.parse(req.body.ingredients);
+    console.log("Update Recipe body:", req.body);
 
+    // 🔥 SAFE PARSE FUNCTION
+    const safeParse = (value) => {
+      if (!value) return value;
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      }
+      return value;
+    };
+
+    // 🔥 Parse only when needed
+    req.body.ingredients = safeParse(req.body.ingredients);
+    req.body.keyBenefits = safeParse(req.body.keyBenefits);
+    req.body.nutritionalInfo = safeParse(req.body.nutritionalInfo);
+
+    // Validate AFTER parsing
     const { error } = updateRecipeValidation.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return res.status(400).json({
+        error: error.details[0].message
+      });
     }
 
     const recipe = await Recipe.findById(recipeId);
@@ -67,36 +159,40 @@ exports.updateRecipe = async (req, res) => {
       return res.status(404).json({ message: "Recipe not found" });
     }
 
-    if (recipe.adminId.toString() !== req.user.userId) {
+    if (recipe.adminId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
+    // 🔥 IMAGE UPDATE
     if (req.file) {
-      // delete old image
       if (recipe.image?.publicId) {
         await cloudinary.uploader.destroy(recipe.image.publicId);
       }
 
       const result = await uploadToCloudinary(req.file.buffer);
 
-      console.log("Cloudinary upload result:", result);
       recipe.image = {
         url: result.secure_url,
-        publicId: result.public_id,
+        publicId: result.public_id
       };
     }
 
+    // 🔥 SAFE FIELD UPDATE (IMPORTANT FIX)
     Object.keys(req.body).forEach((key) => {
-      recipe[key] = req.body[key];
+      if (req.body[key] !== undefined) {
+        recipe[key] = req.body[key];
+      }
     });
 
     await recipe.save();
 
     res.status(200).json({
       message: "Recipe updated successfully",
-      data: recipe,
+      data: recipe
     });
+
   } catch (err) {
+    console.error("Update Recipe Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -150,15 +246,15 @@ exports.getRecipes = async (req, res) => {
   try {
     // console.log("Get Recipes req.user:", req);
     console.log("Get Recipes req.user: ", req.user);
-    // const adminId = req.user.userId; // 🔐 from JWT only
+    const adminId = req.user.userId; // 🔐 from JWT only
 
     // if (!adminId) {
     //   console.log("Unauthorized access attempt to get recipes");
     //   return res.status(401).json({ message: "Unauthorized" });
     // }
 
-    // const recipes = await Recipe.find({ adminId })
-      const recipes = await Recipe.find({status: "active"})
+    const recipes = await Recipe.find({ adminId , status: "active"})
+      // const recipes = await Recipe.find({status: "active"})
       .sort({ createdAt: -1 }); // newest first (optional)
 
     res.status(200).json({
@@ -194,26 +290,95 @@ function recipeContainsAllergy(recipe, allergies) {
   });
 }
 
+// exports.getRecipesByPetAllergies = async (req, res) => {
+//   try {
+//     const { error, value } = recipesByAllergiesValidation.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
+
+//     const { pets } = value;
+//     const recipes = await Recipe.find({ status: "active" })
+//       .sort({ createdAt: -1 })
+//       .lean();
+
+//     const data = pets.map((pet, index) => {
+//       const allergies = pet.allergies || [];
+//       const suggestedRecipes = [];
+//       const notSuggestedRecipes = [];
+
+//       recipes.forEach((recipe) => {
+//         if (!isInStock(recipe)) return;
+//         if (recipeContainsAllergy(recipe, allergies)) {
+//           notSuggestedRecipes.push(recipe);
+//         } else {
+//           suggestedRecipes.push(recipe);
+//         }
+//       });
+
+//       return {
+//         petIndex: index + 1,
+//         petName: pet.name || `Pet ${index + 1}`,
+//         petId: pet.petId || null,
+//         allergies,
+//         suggestedRecipes,
+//         notSuggestedRecipes,
+//       };
+//     });
+
+//     res.status(200).json({
+//       message: "Recipes fetched by pet allergies",
+//       data,
+//     });
+//   } catch (err) {
+//     console.error("getRecipesByPetAllergies Error:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+// new version according to the new recipe schema
 exports.getRecipesByPetAllergies = async (req, res) => {
   try {
-    const { error, value } = recipesByAllergiesValidation.validate(req.body);
+    const { error, value } =
+      recipesByAllergiesValidation.validate(req.body);
+
     if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+      return res.status(400).json({
+        error: error.details[0].message,
+      });
     }
 
     const { pets } = value;
+
+    // 🔥 POPULATE INGREDIENTS
     const recipes = await Recipe.find({ status: "active" })
+      .populate({
+        path: "ingredients.ingredientId",
+        select: "name allergenTag isActive",
+      })
       .sort({ createdAt: -1 })
       .lean();
 
     const data = pets.map((pet, index) => {
-      const allergies = pet.allergies || [];
+      const allergies = (pet.allergies || []).map(a =>
+        a.toLowerCase().trim()
+      );
+
       const suggestedRecipes = [];
       const notSuggestedRecipes = [];
 
       recipes.forEach((recipe) => {
         if (!isInStock(recipe)) return;
-        if (recipeContainsAllergy(recipe, allergies)) {
+
+        // 🔥 NEW ALLERGY CHECK LOGIC
+        const hasAllergy = recipe.ingredients.some((ing) => {
+          const allergen = ing?.ingredientId?.allergenTag;
+          if (!allergen) return false;
+
+          return allergies.includes(allergen.toLowerCase());
+        });
+
+        if (hasAllergy) {
           notSuggestedRecipes.push(recipe);
         } else {
           suggestedRecipes.push(recipe);

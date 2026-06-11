@@ -4,9 +4,12 @@ const RecipeSchema = new mongoose.Schema({
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'SuperAdmin', required: true },
   name: { type: String, required: true },
   description: { type: String },
-  ingredients: { type: [String], default: [] },
+  // ingredients: { type: [String], default: [] },
   nutritionalInfo: { type: String },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+  // price should be double or float
+  // price: { type: mongoose.Schema.Types.Decimal128, required: true },
+
   price: { type: Number, required: true },
   category: { type: String, enum: ['extras', 'mainCourse'], required: true },
   image: {
@@ -16,6 +19,35 @@ const RecipeSchema = new mongoose.Schema({
   stock: { type: Number, default: 0, min: 0 },
   lowStockThreshold: { type: Number, default: 1, min: 0 },
   trackStock: { type: Boolean, default: true },
+
+// 1. UPGRADED: Rich ingredient structure for percentages and benefits
+ingredients: [{
+  ingredientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ingredient', required: true },
+  percentage: { type: Number }, // e.g., 60 for 60% Turkey
+}],
+
+// 3. NEW: UI highlights like "Low in fat" or "Easy to digest"
+keyBenefits: { type: [String], default: [] },
+
+// 4. UPGRADED: Structured nutritional panel data
+nutritionalInfo: {
+  analyticalConstituents: {
+    crudeProtein: { type: String }, // e.g., "13%"
+    crudeFat: { type: String },     // e.g., "5.5%"
+    crudeFibres: { type: String },
+    crudeAsh: { type: String },
+    moisture: { type: String }
+  },
+  additivesPerKg: { type: String } // For text listing added vitamins/minerals
+},
+
+// 6. NEW: Text handling instructions for fresh/frozen food
+// this is same  in max products so we do not need this here
+// storageAndUse: { 
+//   type: String, 
+//   default: 'Delivered freshly frozen. Once defrosted, use within 7 days.' 
+// },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Recipe', RecipeSchema);
