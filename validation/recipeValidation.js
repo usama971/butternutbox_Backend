@@ -53,11 +53,13 @@ const recipeValidation = Joi.object({
 });
 
 const updateRecipeValidation = Joi.object({
+  _id: Joi.string().optional(),
   name: Joi.string().optional(),
   description: Joi.string().allow('', null),
 
   ingredients: Joi.array().items(
     Joi.object({
+      _id: Joi.string().optional(),
       ingredientId: Joi.string().required(),
       percentage: Joi.number().min(0).optional()
     })

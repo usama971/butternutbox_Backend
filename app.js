@@ -22,6 +22,7 @@ const authUpdatePasswordRoutes = require("./routes/authUpdatePasswordRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const leadRoutes = require("./routes/leadRoutes");
 const ingredientRoutes = require("./routes/ingredientRoutes");
+const extrasRoutes = require("./routes/extrasRoutes");
 
 
 
@@ -62,6 +63,7 @@ app.use("/api", authenticateJWT);
 app.use("/api/auth", authUpdatePasswordRoutes);
 
 app.use("/api/recipes", recipeRoutes);
+app.use("/api/extras", extrasRoutes);
 
 app.use("/api/roles", roleRoutes);
 app.use("/api/admins", superAdminRoutes);
