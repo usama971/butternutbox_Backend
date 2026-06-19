@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 exports.createExtras = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-
+console.log("req.body", req.body);
   try {
     req.body.adminId = req.user.userId;
 

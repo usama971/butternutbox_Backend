@@ -33,7 +33,10 @@ const recipeValidation = Joi.object({
     additivesPerKg: Joi.string().allow("", null)
   }).default({}),
 
-  price: Joi.number().min(0).max(1000).optional(),
+  price: Joi.number().min(0).max(1000).optional().messages({
+    "number.min": "Price must be greater than 0",
+    "number.max": "Price must be less than 1000",
+  }),
 
   category: Joi.string()
     .valid("extras", "mainCourse")
@@ -79,7 +82,10 @@ const updateRecipeValidation = Joi.object({
     additivesPerKg: Joi.string().allow('', null)
   }).optional(),
 
-  price: Joi.number().min(0).max(1000).optional(),
+  price: Joi.number().min(0).max(1000).optional().messages({
+    "number.min": "Price must be greater than 0",
+    "number.max": "Price must be less than 1000",
+  }),
 
   category: Joi.string().valid('extras', 'mainCourse').optional(),
 

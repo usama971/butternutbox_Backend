@@ -1,5 +1,17 @@
 const Subscription = require('../Models/subscription');
+const Pet = require('../Models/pet1');
 const subscriptionValidation = require('../validation/subscriptionValidation');
+const {
+  upcomingOrderValidation,
+  deliveryAddressValidation,
+} = require('../validation/upcomingOrderValidation');
+const {
+  getNextBillingDate,
+  getEditCutoffAt,
+  canEditUpcoming,
+  recalculateUpcomingPricing,
+  syncStripeSubscriptionPrice,
+} = require('../utils/subscriptionUtils');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 exports.createSubscription = async (req, res) => {
@@ -286,6 +298,116 @@ exports.skipNextDelivery = async (req, res) => {
       message: "Next delivery skipped successfully. Subscription will resume on the next billing date.",
       data: { ...subscription.toObject(), skippedUntilDate },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+async function buildUpcomingOrderResponse(subscription) {
+  const nextBillingDate = await getNextBillingDate(subscription);
+  const editCutoffAt = getEditCutoffAt(nextBillingDate);
+  const canEdit = canEditUpcoming(subscription, nextBillingDate);
+
+  return {
+    upcomingOrder: subscription.upcomingOrder || null,
+    deliveryAddress: subscription.deliveryAddress || "",
+    nextBillingDate,
+    editCutoffAt,
+    canEdit,
+    status: subscription.status,
+    skipNextDelivery: subscription.skipNextDelivery,
+  };
+}
+
+exports.getUpcomingOrder = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const subscription = await Subscription.findOne({ _id: id, userId });
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found or access denied" });
+    }
+
+    const data = await buildUpcomingOrderResponse(subscription);
+    res.status(200).json({ message: "Upcoming order fetched", data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateUpcomingOrder = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const { error, value } = upcomingOrderValidation.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const subscription = await Subscription.findOne({ _id: id, userId });
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found or access denied" });
+    }
+
+    const nextBillingDate = await getNextBillingDate(subscription);
+    if (!canEditUpcoming(subscription, nextBillingDate)) {
+      return res.status(403).json({
+        message: "Changes locked. Next billing is in less than 48 hours, or subscription is not editable.",
+      });
+    }
+
+    const petIds = value.orders.map((o) => o.petId);
+    const pets = await Pet.find({ _id: { $in: petIds }, userId });
+    if (pets.length !== petIds.length) {
+      return res.status(400).json({ message: "Invalid petId in upcoming order" });
+    }
+
+    const pricing = recalculateUpcomingPricing(value.orders);
+
+    const stripeSubId = subscription.stripeSubscriptionId?.trim?.();
+    if (stripeSubId) {
+      await syncStripeSubscriptionPrice(stripeSubId, pricing.totalPayable);
+    }
+
+    subscription.upcomingOrder = {
+      orders: value.orders,
+      pricing,
+      updatedAt: new Date(),
+    };
+    await subscription.save();
+
+    const data = await buildUpcomingOrderResponse(subscription);
+    res.status(200).json({ message: "Upcoming order updated", data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateDeliveryAddress = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const { error, value } = deliveryAddressValidation.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const subscription = await Subscription.findOne({ _id: id, userId });
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found or access denied" });
+    }
+
+    const nextBillingDate = await getNextBillingDate(subscription);
+    if (!canEditUpcoming(subscription, nextBillingDate)) {
+      return res.status(403).json({
+        message: "Changes locked. Next billing is in less than 48 hours, or subscription is not editable.",
+      });
+    }
+
+    subscription.deliveryAddress = value.deliveryAddress;
+    await subscription.save();
+
+    const data = await buildUpcomingOrderResponse(subscription);
+    res.status(200).json({ message: "Delivery address updated for next order", data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -66,6 +66,7 @@ const updateExtrasValidation = Joi.object({
     )
     .optional(),
   keyBenefits: Joi.array().items(Joi.string()).optional(),
+  productBenefits: Joi.array().items(Joi.string()).optional(),
   nutritionalInfo: Joi.object({
     analyticalConstituents: Joi.object({
       crudeProtein: Joi.string().allow("", null),

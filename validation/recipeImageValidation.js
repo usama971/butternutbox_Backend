@@ -90,9 +90,13 @@ const validateRecipeRequest = async (req, res, next) => {
         await cloudinary.uploader.destroy(req.file.filename);
       }
 
-      return res.status(400).json({
-        error: error.details[0].message,
-      });
+
+      return res.status(400).json({ error: error.details[0].message });
+
+      // return res.status(400).json({
+      //   error: error.details[0].message,
+
+      // });
     }
 
     // 5️⃣ Check duplicate recipe

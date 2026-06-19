@@ -17,6 +17,17 @@ const SubscriptionSchema = new mongoose.Schema({
   nextOrderDate: { type: Date, required: true },
   skipNextDelivery: { type: Boolean, default: false },
   skippedUntilDate: { type: Date },
+
+  upcomingOrder: {
+    orders: { type: Array, default: [] },
+    pricing: {
+      subtotal: { type: Number },
+      totalPayable: { type: Number },
+    },
+    updatedAt: { type: Date },
+  },
+  deliveryAddress: { type: String, default: "" },
+  lastRenewalInvoiceId: { type: String, default: "" },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subscription', SubscriptionSchema);

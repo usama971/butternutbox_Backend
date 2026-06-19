@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const { processCheckoutSession } = require("../controllers/stripeHelper");
+const { processCheckoutSession, processInvoicePaymentSucceeded, processInvoicePaymentFailed } = require("../controllers/stripeHelper");
 
 router.post(
   "/webhook",
@@ -71,7 +71,6 @@ router.post(
         break;
       }
 
-      // Renewal billing events for your subscription cycles
       case "invoice.payment_succeeded": {
         const invoice = event.data.object;
         console.log("📄 invoice.payment_succeeded:", {
@@ -79,6 +78,12 @@ router.post(
           subscription: invoice.subscription,
           billing_reason: invoice.billing_reason,
         });
+        try {
+          await processInvoicePaymentSucceeded(invoice);
+        } catch (err) {
+          console.error("❌ processInvoicePaymentSucceeded error:", err);
+          return res.status(500).json({ error: err.message });
+        }
         break;
       }
 
@@ -89,6 +94,12 @@ router.post(
           subscription: invoice.subscription,
           billing_reason: invoice.billing_reason,
         });
+        try {
+          await processInvoicePaymentFailed(invoice);
+        } catch (err) {
+          console.error("❌ processInvoicePaymentFailed error:", err);
+          return res.status(500).json({ error: err.message });
+        }
         break;
       }
 

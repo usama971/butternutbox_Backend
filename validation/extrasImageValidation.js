@@ -3,6 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const Extras = require("../Models/extras");
 
 const validateExtrasRequest = async (req, res, next) => {
+  console.log("req.body", req.body);
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Extras image is required" });
@@ -24,6 +25,7 @@ const validateExtrasRequest = async (req, res, next) => {
 
     req.body.ingredients = safeParse(req.body.ingredients);
     req.body.keyBenefits = safeParse(req.body.keyBenefits);
+    req.body.productBenefits = safeParse(req.body.productBenefits);
     req.body.nutritionalInfo = safeParse(req.body.nutritionalInfo);
     req.body.storageAndUse = safeParse(req.body.storageAndUse);
 

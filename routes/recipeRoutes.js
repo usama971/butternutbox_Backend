@@ -8,14 +8,6 @@ const {upload,uploadToCloudinary } = require("../controllers/middlewares/recipeU
 // const authenticateJWT = require("../controllers/middlewares/authenticateJWT");
 const authenticateJWT = require("../controllers/middlewares/authenticateJWT");
 
-// router.post('/', recipeController.createRecipe);
-
-// router.post(
-//   '/',
-//   upload.single('image'), // 👈 KEY MUST BE "image"
-//   recipeController.createRecipe
-// );
-
 
 router.post(
   '/',
