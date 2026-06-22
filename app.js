@@ -23,6 +23,8 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const leadRoutes = require("./routes/leadRoutes");
 const ingredientRoutes = require("./routes/ingredientRoutes");
 const extrasRoutes = require("./routes/extrasRoutes");
+const extrasRoutesForUser = require("./routes/extrasRoutesforUser");
+
 
 
 
@@ -57,6 +59,7 @@ app.use("/api/checkout", checkoutRoutes);
 app.use("/api/promoCodes/validate", promoCodeValidateRoutes);
 
 app.use("/api/recipes", recipeRoutesForUser);
+app.use("/api/extras", extrasRoutesForUser);
 app.use("/api/leads", leadRoutes);
 
 app.use("/api", authenticateJWT);

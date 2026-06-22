@@ -6,12 +6,12 @@ const authorizePermissions  = require('../controllers/middlewares/authorizePermi
 router.post('/', subscriptionController.createSubscription);
 router.get('/my', subscriptionController.getMySubscriptions);
 router.get('/', authorizePermissions(['MANAGE_SUBSCRIPTIONS']), subscriptionController.getSubscriptions);
-router.patch('/:id/cancel', subscriptionController.cancelSubscription);
-router.patch('/:id/pause', subscriptionController.pauseSubscription);
-router.patch('/:id/resume', subscriptionController.resumeSubscription);
-router.patch('/:id/skip-next-delivery', subscriptionController.skipNextDelivery);
-router.get('/:id/upcoming-order', subscriptionController.getUpcomingOrder);
-router.patch('/:id/upcoming-order', subscriptionController.updateUpcomingOrder);
-router.patch('/:id/delivery-address', subscriptionController.updateDeliveryAddress);
+router.patch('/cancel/:id', subscriptionController.cancelSubscription);
+router.patch('/pause/:id', subscriptionController.pauseSubscription);
+router.patch('/resume/:id', subscriptionController.resumeSubscription);
+router.patch('/skipNextDelivery/:id', subscriptionController.skipNextDelivery);
+router.get('/upcomingOrder/:id', subscriptionController.getUpcomingOrder);
+router.patch('/upcomingOrder/:id', subscriptionController.updateUpcomingOrder);
+router.patch('/deliveryAddress/:id', subscriptionController.updateDeliveryAddress);
 
 module.exports = router;

@@ -182,3 +182,24 @@ exports.getExtras = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.getAllExtras = async (req, res) => {
+  try {
+    // const adminId = req.user.userId;
+
+    const extras = await Extras.find({ status: "active" })
+      .populate({
+        path: "ingredients.ingredientId",
+        select: "name allergenTag ingredientsBenefits isActive",
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Extras fetched successfully",
+      count: extras.length,
+      data: extras,
+    });
+  } catch (err) {
+    console.error("Get Extras Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
