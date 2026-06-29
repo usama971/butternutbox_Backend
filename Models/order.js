@@ -13,7 +13,7 @@ const OrderItemSchema = new mongoose.Schema(
     description: { type: String, required: true },
     category: { type: String, required: true },
     qty: { type: Number, default: 1 },
-    ingredients: { type: [String], required: true },
+    ingredients: { type:{}, required: true },
   },
   { _id: false },
 );
