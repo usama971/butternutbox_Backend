@@ -1,17 +1,20 @@
 const User = require("../Models/userModel");
 const Lead = require("../Models/lead");
+const getRecipesByPetAllergies = require('../controllers/recipeController').getRecipesByPetAllergies;
 
 const createLead = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, pets } = req.body;
 
+    console.log("Received lead data:", { name, email, pets });
     // validation
-    if (!name || !email) {
+    if (!name || !email || !pets) {
       return res.status(400).json({
         success: false,
-        message: "Name and email are required",
+        message: "Name, email, and pets are required",
       });
     }
+    const recipeData = await getRecipesByPetAllergies(pets);
 
     // check if user already exists
     const existingUser = await User.findOne({ email });
@@ -19,7 +22,9 @@ const createLead = async (req, res) => {
     if (existingUser) {
       return res.status(200).json({
         exists: true, // frontend will hide password fields
+        recipeData,
         message: "User already exists",
+
       });
     }
 
@@ -30,6 +35,7 @@ const createLead = async (req, res) => {
     if (existingLead) {
       return res.status(200).json({
         exists: false, // frontend will show password fields
+        recipeData,
         message: "Lead already exists",
       });
     }
@@ -42,6 +48,7 @@ const createLead = async (req, res) => {
 
     return res.status(201).json({
       exists: false,
+      recipeData,
       message: "Lead created successfully",
       data: lead,
     });

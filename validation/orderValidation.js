@@ -22,7 +22,7 @@ const extraItemSchema = Joi.object({
   price: Joi.number().required(),
   description: Joi.string().allow("").optional(),
   category: Joi.string().allow("").optional(),
-  ingredients: Joi.array().items(Joi.string()).required(),
+  ingredients: Joi.array().required(),
 });
 
 const orderValidation = Joi.object({

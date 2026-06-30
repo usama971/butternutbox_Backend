@@ -20,7 +20,7 @@ const petValidation = Joi.object({
   healthIssues: Joi.array().items(Joi.string()).default([]),
   snacks: Joi.array().required(),
   selectedHealthIssues: Joi.array().required(),
-  breed: Joi.string().required(),
+  breed: Joi.string().optional().allow(''),
   ageGroup: Joi.string().required(),
   age: Joi.number().allow(null),
   month: Joi.number().allow(null),

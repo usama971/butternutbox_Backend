@@ -337,7 +337,7 @@ function recipeContainsAllergy(recipe, allergies) {
 // };
 
 // new version according to the new recipe schema
-exports.getRecipesByPetAllergies = async (req, res) => {
+exports.getRecipesByPetAllergiesDirect = async (req, res) => {
   try {
     const { error, value } =
       recipesByAllergiesValidation.validate(req.body);
@@ -404,3 +404,51 @@ exports.getRecipesByPetAllergies = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+exports.getRecipesByPetAllergies = async (pets) => {
+  // Get all active recipes
+  const recipes = await Recipe.find({ status: "active" })
+    .populate({
+      path: "ingredients.ingredientId",
+      select: "name allergenTag isActive",
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return pets.map((pet, index) => {
+    const allergies = (pet.allergies || []).map((a) =>
+      a.toLowerCase().trim()
+    );
+
+    const suggestedRecipes = [];
+    const notSuggestedRecipes = [];
+
+    recipes.forEach((recipe) => {
+      if (!isInStock(recipe)) return;
+
+      const hasAllergy = recipe.ingredients.some((ing) => {
+        const allergen = ing?.ingredientId?.allergenTag;
+        if (!allergen) return false;
+
+        return allergies.includes(allergen.toLowerCase());
+      });
+
+      if (hasAllergy) {
+        notSuggestedRecipes.push(recipe);
+      } else {
+        suggestedRecipes.push(recipe);
+      }
+    });
+
+    return {
+      petIndex: index + 1,
+      petName: pet.name || `Pet ${index + 1}`,
+      petId: pet.petId || null,
+      allergies,
+      suggestedRecipes,
+      notSuggestedRecipes,
+    };
+  });
+};
+
