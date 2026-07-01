@@ -8,7 +8,7 @@ router.get('/my', subscriptionController.getMySubscriptions);
 router.get('/', authorizePermissions(['MANAGE_SUBSCRIPTIONS']), subscriptionController.getSubscriptions);
 router.patch('/:id/cancel', subscriptionController.cancelSubscription);
 router.patch('/:id/pause', subscriptionController.pauseSubscription);
-router.patch('/resume/:id', subscriptionController.resumeSubscription);
+router.patch('/:id/resume', subscriptionController.resumeSubscription);
 router.patch('/:id/skipNextDelivery', subscriptionController.skipNextDelivery);
 router.get('/upcomingOrder/:id', subscriptionController.getUpcomingOrder);
 router.patch('/upcomingOrder/:id', subscriptionController.updateUpcomingOrder);

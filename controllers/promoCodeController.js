@@ -173,6 +173,12 @@ exports.updatePromoCode = async (req, res) => {
     const adminId = req.user.userId;
     req.body.adminId = adminId;
     console.log("Update Request Body:", req.body);
+
+     if (req?.body?.status==="expire") {
+      req.body.status ="inactive"
+    }
+    console.log("Toggle Request Body after expire check:", req.body);
+
     const { error } = updatePromoCodeValidation.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
@@ -210,9 +216,6 @@ exports.togglePromoCodeStatus = async (req, res) => {
 
     console.log("Toggle Request Body:", req.params.id);
     console.log("Toggle Request User:", req.user.userId);
- if (req?.body?.status==="expire") {
-      req.body.status ="inactive"
-    }
 
 
     const promo = await PromoCode.findOne( {'_id': req.params.id, 'adminId': req.user.userId});
