@@ -210,6 +210,11 @@ exports.togglePromoCodeStatus = async (req, res) => {
 
     console.log("Toggle Request Body:", req.params.id);
     console.log("Toggle Request User:", req.user.userId);
+ if (req?.body?.status==="expire") {
+      req.body.status ="inactive"
+    }
+
+
     const promo = await PromoCode.findOne( {'_id': req.params.id, 'adminId': req.user.userId});
     console.log("Toggle Promo:", promo);
     if (!promo)
