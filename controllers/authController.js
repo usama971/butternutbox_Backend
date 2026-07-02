@@ -262,6 +262,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         roleName: user.roleId.roleName,
         permissions: user.roleId.permissions,
+        adminId: user.adminId, // Include adminId in the token payload
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" },

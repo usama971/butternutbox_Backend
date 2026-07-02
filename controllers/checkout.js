@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const Pet = require("../validation/petValidation");
 const { orderValidation, pricingSchema } = require("../validation/orderValidation");
 const User = require("../validation/userValidation");
+const {createStripePortalSession} = require("../controllers/stripeHelper");
 
 const userModel = require("../Models/userModel");
 const CheckoutSession = require("../Models/CheckoutSession");
@@ -109,6 +110,24 @@ exports.createCheckout = async (req, res) => {
   } catch (err) {
     console.error("Checkout error:", err);
     return res.status(500).json({ message: err.message });
+  }
+};
+
+exports.createStripePortalSession1 = async (req, res) => {
+  try {
+    const { subscriptionId, returnUrl } = req.body;
+    
+    if (!subscriptionId || !returnUrl) {
+      return res.status(400).json({ error: "Subscription ID and Return URL are required" });
+    }
+console.log("Received request to create Stripe Portal Session:", { subscriptionId, returnUrl });
+    const sessionData = await createStripePortalSession(subscriptionId, returnUrl);
+    console.log("Stripe Portal Session created successfully:", sessionData);
+    // Frontend ko direct URL bhej dein
+    res.json(sessionData);
+  } catch (err) {
+    console.error("❌ Portal session error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
 

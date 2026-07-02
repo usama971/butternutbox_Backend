@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const { processCheckoutSession, processInvoicePaymentSucceeded, processInvoicePaymentFailed } = require("../controllers/stripeHelper");
+const { processCheckoutSession, processInvoicePaymentSucceeded, processInvoicePaymentFailed,
+  processSubscriptionCancelled
+ } = require("../controllers/stripeHelper");
 
 router.post(
   "/webhook",
@@ -62,14 +64,19 @@ router.post(
         break;
       }
 
-      case "customer.subscription.deleted": {
-        const sub = event.data.object;
-        console.log("🔁 customer.subscription.deleted:", {
-          id: sub.id,
-          customer: sub.customer,
-        });
-        break;
-      }
+      // Jab stripe par 3 din ki retries khatam hongi, stripe yeh event bhejega:
+  case "customer.subscription.deleted": {
+    const sub = event.data.object;
+    console.log("🔁 Stripe subscription ended/deleted event received for:", sub.id);
+    try {
+      // Hum status ko cancelled mark kar rahe hain, delete nahi!
+      await processSubscriptionCancelled(sub.id);
+    } catch (err) {
+      console.error("❌ processSubscriptionCancelled error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    break;
+  }
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object;

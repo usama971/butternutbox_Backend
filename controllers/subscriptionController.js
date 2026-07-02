@@ -391,7 +391,7 @@ exports.updateDeliveryAddress = async (req, res) => {
     const { error, value } = deliveryAddressValidation.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
-    const subscription = await Subscription.findOne({ _id: id, userId });
+    const subscription = await Subscription.findOne({ orderId: id, userId });
     if (!subscription) {
       return res.status(404).json({ message: "Subscription not found or access denied" });
     }

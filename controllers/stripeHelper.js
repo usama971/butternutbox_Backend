@@ -6,6 +6,9 @@ const CheckoutSession = require("../Models/CheckoutSession");
 const PromoCode = require("../Models/promoCode");
 const Recipe = require("../Models/recipe");
 const Lead = require("../Models/lead");
+const Stripe = require("stripe");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 const { createAdminNotifications } = require("../services/notificationService");
 const {
   buildUpcomingOrderSeed,
@@ -292,9 +295,48 @@ async function processInvoicePaymentFailed(invoice) {
   console.log("⚠️ Subscription marked past_due:", subscription._id);
 }
 
+// 👈 YEH NAYA FUNCTION ADD KAREN (Record delete nahi hoga, sirf status 'cancelled' hoga)
+async function processSubscriptionCancelled(stripeSubscriptionId) {
+  if (!stripeSubscriptionId) return;
+
+  const subscription = await Subscription.findOne({ stripeSubscriptionId });
+  if (!subscription) {
+    console.log(`⚠️ Subscription not found in DB for Stripe ID: ${stripeSubscriptionId}`);
+    return;
+  }
+
+  // Record delete nahi kar rahe, sirf status ko 'cancelled' kar rahe hain history rakhne ke liye
+  subscription.status = "cancelled"; 
+  await subscription.save();
+  
+  console.log(`❌ Subscription marked as cancelled in DB (History Preserved): ${subscription._id}`);
+}
+
+
+async function createStripePortalSession(subscriptionId, returnUrl) {
+  console.log("Creating Stripe Portal Session for subscription:", subscriptionId);
+  // 1. DB se subscription find karen
+  const subscription = await Subscription.findById(subscriptionId);
+  if (!subscription) throw new Error("Subscription not found in database");
+
+  // 2. Stripe Customer Portal Session create karen
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: subscription.stripeCustomerId,
+    return_url: returnUrl, // Payment ya card update ke baad user yahan wapas aayega
+    flow_data: {
+      type: "payment_method_update", // 👈 Yeh option user ko DIRECT sirf card update aur retry wale page par le jayega
+    },
+  });
+
+  // 3. Frontend ke liye secure URL return karen
+  return { url: portalSession.url };
+}
+
 module.exports = {
   processCheckoutSession,
   processInvoicePaymentSucceeded,
   processInvoicePaymentFailed,
   decrementRecipeStock,
+  processSubscriptionCancelled, // Naya function export kiya
+  createStripePortalSession
 };

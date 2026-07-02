@@ -246,7 +246,12 @@ exports.getRecipes = async (req, res) => {
   try {
     // console.log("Get Recipes req.user:", req);
     console.log("Get Recipes req.user: ", req.user);
-    const adminId = req.user.userId; // 🔐 from JWT only
+    
+    let adminId = req.user.userId; // 🔐 from JWT only
+
+    if(req?.user?.adminId){
+      adminId = req.user.adminId;
+    }
 
     // if (!adminId) {
     //   console.log("Unauthorized access attempt to get recipes");
